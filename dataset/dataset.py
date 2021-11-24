@@ -151,8 +151,8 @@ class LightningGreatApeDataset(torch.utils.data.Dataset):
             spatial_sample.append(spatial_data.squeeze_(0))
             spatial_image.close()
                 
-        # end
-        spatial_sample = torch.stack(spatial_sample, dim=0)
+        # Stacking as C x T x W x H
+        spatial_sample = torch.stack(spatial_sample, dim=1)
         return spatial_sample
 
     """
