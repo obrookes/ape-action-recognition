@@ -28,25 +28,32 @@ the spatial and temporal streams respectively.
 """
 
 class LightningGreatApeDataset(torch.utils.data.Dataset):
+
+    '''
+    Args
+    data: path to frames
+    annotations: path to annotations
+    '''
+
     def __init__(
-        self, dataset, paths, augmentation, mode, video_names, classes,
+        self, data, annotations, sample_interval, sequence_length, activity_duration_threshold, jitter, flip, rotation, probability, mode, video_names, classes,
     ):
         super(LightningGreatApeDataset, self).__init__()
-
+        
         # Specifies what split of data this will hold (e.g. train, validation, test)
         self.mode = mode
 
         # Data sampling parameters
-        self.sample_interval = dataset['sample_interval']
-        self.sequence_length = dataset['sequence_length']
-        self.activity_duration_threshold = dataset['activity_duration_threshold']
+        self.sample_interval = sample_interval
+        self.sequence_length = sequence_length
+        self.activity_duration_threshold = activity_duration_threshold
 
         # Obtain from txt file with the names of videos to sample from.
         self.video_names = open(video_names).read().strip().split()
 
         # Path initialisation
-        self.frame_dir = paths['frames']
-        self.annotations_dir = paths['annotations']
+        self.frame_dir = data
+        self.annotations_dir = annotations
 
         self.classes = classes
 
@@ -68,8 +75,8 @@ class LightningGreatApeDataset(torch.utils.data.Dataset):
         (
             self.spatial_augmentation_transform,
             self.temporal_augmentation_transform,
-        ) = self.initialise_augmentations(augmentation)
-        self.augmentation_probability = augmentation['probability']
+        ) = self.initialise_augmentations(jitter, flip, rotation)
+        self.augmentation_probability = probability
 
         self.labels = 0
         self.samples = {}
@@ -569,22 +576,23 @@ class LightningGreatApeDataset(torch.utils.data.Dataset):
         return self.labels[index]
 
     # Add augmentations to be considered for training according to config
-    def initialise_augmentations(self, augmentation_cfg):
+    def initialise_augmentations(self, jitter, flip, rotation):
 
         spatial_aug = []
         temporal_aug = []
 
-        if augmentation_cfg['spatial']['colour_jitter']:
+        if jitter:
             spatial_aug.append(
                 transforms.ColorJitter(brightness=0.5, contrast=0.5, saturation=0.5, hue=0.5)
             )
-        if augmentation_cfg['spatial']['horizontal_flip']:
+        if flip:
             spatial_aug.append(transforms.RandomHorizontalFlip(p=1))
-        if augmentation_cfg['spatial']['rotation']:
+        if rotation:
             spatial_aug.append(transforms.RandomRotation(p=1, degrees=10))
 
-        if augmentation_cfg['temporal']['horizontal_flip']:
-            temporal_aug.append(transforms.RandomHorizontalFlip(p=1))
+        
+        # if augmentation_cfg['temporal']['horizontal_flip']:
+            # temporal_aug.append(transforms.RandomHorizontalFlip(p=1))
 
         return spatial_aug, temporal_aug
 
