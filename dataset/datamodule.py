@@ -15,8 +15,12 @@ class PanAfDataModule(pytorch_lightning.LightningDataModule):
     _TEST_VIDEOS = '/home/dl18206/Desktop/phd/code/personal/pan-africa-annotation/action-recognition/splits/testdata.txt'
     _CLASSES = open('classes.txt').read().strip().split()
 
+    _SAMPLE_ITVL = 20
+    _SEQUENCE_LENGTH = 5 
+    _THRESHOLD = 72
+
     # Dataloader configuration
-    _BATCH_SIZE = 1
+    _BATCH_SIZE = 4
     _NUM_WORKERS = 6  # Number of parallel processes fetching data
 
     def train_dataloader(self):
@@ -24,9 +28,9 @@ class PanAfDataModule(pytorch_lightning.LightningDataModule):
         train_dataset = LightningGreatApeDataset(
             data=self._FRAMES,
             annotations=self._ANNOTATIONS,
-            sample_interval=5,
-            sequence_length=5,
-            activity_duration_threshold=10,
+            sample_interval=self._SAMPLE_ITVL,
+            sequence_length=self._SEQUENCE_LENGTH,
+            activity_duration_threshold=self._THRESHOLD,
             jitter=False,
             flip=False,
             rotation=False,
