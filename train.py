@@ -26,10 +26,10 @@ class VideoClassificationLightningModule(pl.LightningModule):
       self.top1_val_accuracy = torchmetrics.Accuracy(top_k=1)  
       self.top3_val_accuracy = torchmetrics.Accuracy(top_k=3) 
 
-  def forward(self, x):
+    def forward(self, x):
       return self.model(x)
 
-  def training_step(self, batch, batch_idx):
+    def training_step(self, batch, batch_idx):
       # The model expects a video tensor of shape (B, C, T, H, W), which is the
       # format provided by the dataset
       data, label, meta = batch
@@ -48,7 +48,7 @@ class VideoClassificationLightningModule(pl.LightningModule):
 
       return {"loss": loss, "logs": {"train_loss": loss, "top1_train_acc": top1_train_acc, "top3_train_acc": top3_train_acc}}
 
-  def training_epoch_end(self, outputs):
+    def training_epoch_end(self, outputs):
 
         # Log epoch acc
         top1_acc = self.top1_train_accuracy.compute()
@@ -61,7 +61,7 @@ class VideoClassificationLightningModule(pl.LightningModule):
         self.log('train_loss_epoch', loss, logger=True, on_epoch=True, on_step=False, prog_bar=True)
  
 
-  def validation_step(self, batch, batch_idx):
+    def validation_step(self, batch, batch_idx):
   
       data, label, meta = batch
       pred = self.model(data)
@@ -77,7 +77,7 @@ class VideoClassificationLightningModule(pl.LightningModule):
       
       return {"loss": loss, "logs": {"val_loss": loss, "top1_val_acc": top1_val_acc, "top3_val_acc": top3_val_acc}}
 
-  def validation_epoch_end(self, outputs):
+    def validation_epoch_end(self, outputs):
 
         # Log epoch acc
         top1_acc = self.top1_val_accuracy.compute()
@@ -89,7 +89,7 @@ class VideoClassificationLightningModule(pl.LightningModule):
         loss = torch.stack([x['loss'] for x in outputs]).mean()
         self.log('val_loss_epoch', loss, logger=True, on_epoch=True, on_step=False, prog_bar=True)
  
-  def configure_optimizers(self):
+    def configure_optimizers(self):
       """
       Setup the Adam optimizer. Note, that this function also can return a lr scheduler, which is
       usually useful for training video models.
