@@ -4,23 +4,33 @@ import torch.nn as nn
 import torch.nn.functional as F
 import pytorch_lightning as pl
 import pytorchvideo.models.resnet
+from pytorchvideo.models.head import create_res_basic_head
 from dataset.datamodule import PanAfDataModule
 
 class VideoClassificationLightningModule(pl.LightningModule):
   
-    def __init__(self):
+    def __init__(self, model_name, freeze_backbone):
       super().__init__()
 
-      self.model = pytorchvideo.models.resnet.create_resnet(
-        input_channel=3,
-        model_depth=50,
-        model_num_class=9,
-        norm=nn.BatchNorm3d,
-        activation=nn.ReLU,
-    )
 
+      self.model_name = model_name
+      self.freeze_backbone = freeze_backbone
+    
+      # Load pretrained model
+      pretrained_model = torch.hub.load("facebookresearch/pytorchvideo:main", model=self.model_name, pretrained=True)
+      
+      # Strip the head from backbone  
+      backbone = nn.Sequential(*list(pretrained_model.children())[0][:-1])
+
+      # Attach a new head with specified class number (hard coded for now...)
+      backbone.head = create_res_basic_head(
+              in_features=2048, out_features=9
+      )
+      
+      # Initialise new model
+      self.model = backbone
+      
       # Metric initialisation
-
       self.top1_train_accuracy = torchmetrics.Accuracy(top_k=1)
       self.top3_train_accuracy = torchmetrics.Accuracy(top_k=3)
       self.top1_val_accuracy = torchmetrics.Accuracy(top_k=1)  
@@ -98,7 +108,7 @@ class VideoClassificationLightningModule(pl.LightningModule):
 
 def main():
 
-    classification_module = VideoClassificationLightningModule()
+    classification_module = VideoClassificationLightningModule(model_name='slow_r50', freeze_backbone=False)
     data_module = PanAfDataModule()
     trainer = pl.Trainer()
     trainer.fit(classification_module, data_module)
