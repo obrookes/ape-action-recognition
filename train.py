@@ -108,7 +108,8 @@ class VideoClassificationLightningModule(pl.LightningModule):
       return torch.optim.Adam(self.parameters(), lr=1e-1)
 
 def main():
-
+    
+    # Input all needs to come for argparse eventually...
     classification_module = VideoClassificationLightningModule(model_name='slow_r50', freeze_backbone=True)
     data_module = PanAfDataModule()
     trainer = pl.Trainer()
