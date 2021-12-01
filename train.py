@@ -1,5 +1,6 @@
 import torch
 import torchmetrics
+import argparse
 import torch.nn as nn
 import torch.nn.functional as F
 import pytorch_lightning as pl
@@ -89,10 +90,6 @@ class VideoClassificationLightningModule(pl.LightningModule):
       top3_val_acc = self.top3_val_accuracy(pred, label)
 
       probs = F.softmax(pred, dim=1)
-
-      print(f"probs {probs}")
-      print(f"label {label}")
-
       val_mAP = torchmetrics.functional.average_precision(probs, label, num_classes=9, average='macro') 
 
       self.log('top1_train_acc', top1_val_acc, logger=False, on_epoch=False, on_step=False, prog_bar=True)
@@ -125,13 +122,34 @@ class VideoClassificationLightningModule(pl.LightningModule):
       """
       return torch.optim.Adam(self.parameters(), lr=1e-1)
 
-def main():
+def main(args):
     
     # Input all needs to come for argparse eventually...
     classification_module = VideoClassificationLightningModule(model_name='slow_r50', freeze_backbone=True)
-    data_module = PanAfDataModule()
+    data_module = PanAfDataModule(batch_size=args.batch_size,
+            num_workers = args.num_workers,
+            sample_interval = args.sample_interval,
+            seq_length = args.seq_length,
+            behaviour_threshold = args.behaviour_threshold,
+            compute = args.compute
+            )
+    
     trainer = pl.Trainer()
     trainer.fit(classification_module, data_module)
 
 if __name__== "__main__":
-    main()
+   
+    parser = argparse.ArgumentParser(description='Process some integers.')
+    parser.add_argument('--batch_size', type=int, default=4)
+    parser.add_argument('--num_workers', type=int, default=6)
+    parser.add_argument('--sample_interval', type=int, default=10, 
+            help='The interval between consecutive frames to sample')
+    parser.add_argument('--seq_length', type=int, default=5,
+            help='The length of the sequence to sample')
+    parser.add_argument('--behaviour_threshold', type=int, default=72,
+            help='The length of time (in frames...) a behaviour must be exhibited to be a valid sample at training time')
+    parser.add_argument('--compute', type=str, default='local',
+            help='Specify either "local" or "hpc"')
+    args = parser.parse_args()
+
+    main(args)

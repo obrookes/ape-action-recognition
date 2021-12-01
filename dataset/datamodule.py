@@ -6,31 +6,48 @@ from dataset.dataset import LightningGreatApeDataset
 
 class PanAfDataModule(pytorch_lightning.LightningDataModule):
 
-    # Dataset configuration
-    
-    _FRAMES = '/home/dl18206/Desktop/phd/code/personal/ape-behaviour-triplet-network/data/frames'
-    _ANNOTATIONS = '/home/dl18206/Desktop/phd/code/personal/ape-behaviour-triplet-network/data/annotations'
-    _TRAIN_VIDEOS = '/home/dl18206/Desktop/phd/code/personal/pan-africa-annotation/action-recognition/splits/traindata.txt'
-    _VAL_VIDEOS = '/home/dl18206/Desktop/phd/code/personal/pan-africa-annotation/action-recognition/splits/valdata.txt'
-    _TEST_VIDEOS = '/home/dl18206/Desktop/phd/code/personal/pan-africa-annotation/action-recognition/splits/testdata.txt'
-    _CLASSES = open('classes.txt').read().strip().split()
+    def __init__(self, 
+            batch_size, 
+            num_workers,
+            sample_interval,
+            seq_length,
+            behaviour_threshold,
+            compute
+            ):
+        
+        super().__init__()
+        self.batch_size = batch_size
+        self.num_workers = num_workers
+        self.sample_interval = sample_interval
+        self.seq_length = seq_length
+        self.behaviour_threshold = behaviour_threshold
+        self.compute = compute
 
-    _SAMPLE_ITVL = 20
-    _SEQUENCE_LENGTH = 5 
-    _THRESHOLD = 72
+        if(self.compute=='local'):
+            self._FRAMES = '/home/dl18206/Desktop/phd/code/personal/ape-behaviour-triplet-network/data/frames'
+            self._ANNOTATIONS = '/home/dl18206/Desktop/phd/code/personal/ape-behaviour-triplet-network/data/annotations'
+            self._TRAIN_VIDEOS = '/home/dl18206/Desktop/phd/code/personal/pan-africa-annotation/action-recognition/splits/traindata.txt'
+            self._VAL_VIDEOS = '/home/dl18206/Desktop/phd/code/personal/pan-africa-annotation/action-recognition/splits/valdata.txt'
+            self._TEST_VIDEOS = '/home/dl18206/Desktop/phd/code/personal/pan-africa-annotation/action-recognition/splits/testdata.txt'
+            self._CLASSES = open('classes.txt').read().strip().split()
+        
+        elif(self.compute=='hpc'):
+            self._FRAMES = '/mnt/storage/scratch/dl18206/frames'
+            self._ANNOTATIONS = '/mnt/storage/scratch/dl18206/annotations'
+            self._TRAIN_VIDEOS = '/mnt/storage/scratch/dl18206/splits/train.txt'
+            self._VAL_VIDEOS = '/mnt/storage/scratch/dl18206/splits/val.txt'
+            self._TEST_VIDEOS = '/mnt/storage/scratch/dl18206/splits/test.txt'
+            self._CLASSES = open('/mnt/storage/scratch/dl18206/classes.txt').read().strip().split()
 
-    # Dataloader configuration
-    _BATCH_SIZE = 4
-    _NUM_WORKERS = 6  # Number of parallel processes fetching data
 
     def train_dataloader(self):
 
         train_dataset = LightningGreatApeDataset(
             data=self._FRAMES,
             annotations=self._ANNOTATIONS,
-            sample_interval=self._SAMPLE_ITVL,
-            sequence_length=self._SEQUENCE_LENGTH,
-            activity_duration_threshold=self._THRESHOLD,
+            sample_interval=self.sample_interval,
+            sequence_length=self.seq_length,
+            activity_duration_threshold=self.behaviour_threshold,
             jitter=False,
             flip=False,
             rotation=False,
@@ -42,8 +59,8 @@ class PanAfDataModule(pytorch_lightning.LightningDataModule):
 
         return torch.utils.data.DataLoader(
             train_dataset,
-            batch_size=self._BATCH_SIZE,
-            num_workers=self._NUM_WORKERS,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
         )
 
     def val_dataloader(self):
@@ -65,6 +82,6 @@ class PanAfDataModule(pytorch_lightning.LightningDataModule):
 
        return torch.utils.data.DataLoader(
             val_dataset,
-            batch_size=self._BATCH_SIZE,
-            num_workers=self._NUM_WORKERS,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
             )
