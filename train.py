@@ -130,7 +130,8 @@ def main(args):
             num_workers = args.num_workers,
             sample_interval = args.sample_interval,
             seq_length = args.seq_length,
-            behaviour_threshold = args.behaviour_threshold
+            behaviour_threshold = args.behaviour_threshold,
+            compute = args.compute
             )
     
     trainer = pl.Trainer()
@@ -147,6 +148,8 @@ if __name__== "__main__":
             help='The length of the sequence to sample')
     parser.add_argument('--behaviour_threshold', type=int, default=72,
             help='The length of time (in frames...) a behaviour must be exhibited to be a valid sample at training time')
+    parser.add_argument('--compute', type=str, default='local',
+            help='Specify either "local" or "hpc"')
     args = parser.parse_args()
 
     main(args)
