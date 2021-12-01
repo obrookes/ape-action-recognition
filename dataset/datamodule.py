@@ -11,7 +11,8 @@ class PanAfDataModule(pytorch_lightning.LightningDataModule):
             num_workers,
             sample_interval,
             seq_length,
-            behaviour_threshold
+            behaviour_threshold,
+            compute
             ):
         
         super().__init__()
@@ -20,15 +21,23 @@ class PanAfDataModule(pytorch_lightning.LightningDataModule):
         self.sample_interval = sample_interval
         self.seq_length = seq_length
         self.behaviour_threshold = behaviour_threshold
+        self.compute = compute
 
-        # Hardcoded paths
+        if(self.compute=='local'):
+            self._FRAMES = '/home/dl18206/Desktop/phd/code/personal/ape-behaviour-triplet-network/data/frames'
+            self._ANNOTATIONS = '/home/dl18206/Desktop/phd/code/personal/ape-behaviour-triplet-network/data/annotations'
+            self._TRAIN_VIDEOS = '/home/dl18206/Desktop/phd/code/personal/pan-africa-annotation/action-recognition/splits/traindata.txt'
+            self._VAL_VIDEOS = '/home/dl18206/Desktop/phd/code/personal/pan-africa-annotation/action-recognition/splits/valdata.txt'
+            self._TEST_VIDEOS = '/home/dl18206/Desktop/phd/code/personal/pan-africa-annotation/action-recognition/splits/testdata.txt'
+            self._CLASSES = open('classes.txt').read().strip().split()
         
-        self._FRAMES = '/home/dl18206/Desktop/phd/code/personal/ape-behaviour-triplet-network/data/frames'
-        self._ANNOTATIONS = '/home/dl18206/Desktop/phd/code/personal/ape-behaviour-triplet-network/data/annotations'
-        self._TRAIN_VIDEOS = '/home/dl18206/Desktop/phd/code/personal/pan-africa-annotation/action-recognition/splits/traindata.txt'
-        self._VAL_VIDEOS = '/home/dl18206/Desktop/phd/code/personal/pan-africa-annotation/action-recognition/splits/valdata.txt'
-        self._TEST_VIDEOS = '/home/dl18206/Desktop/phd/code/personal/pan-africa-annotation/action-recognition/splits/testdata.txt'
-        self._CLASSES = open('classes.txt').read().strip().split()
+        elif(self.compute=='hpc'):
+            self._FRAMES = '/mnt/storage/scratch/dl18206/frames'
+            self._ANNOTATIONS = '/mnt/storage/scratch/dl18206/annotations'
+            self._TRAIN_VIDEOS = '/mnt/storage/scratch/dl18206/splits/train.txt'
+            self._VAL_VIDEOS = '/mnt/storage/scratch/dl18206/splits/val.txt'
+            self._TEST_VIDEOS = '/mnt/storage/scratch/dl18206/splits/test.txt'
+            self._CLASSES = open('/mnt/storage/scratch/dl18206/classes.txt').read().strip().split()
 
 
     def train_dataloader(self):
