@@ -7,6 +7,9 @@ import pytorch_lightning as pl
 import pytorchvideo.models.resnet
 from pytorchvideo.models.head import create_res_basic_head
 from dataset.datamodule import PanAfDataModule
+from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning import loggers
+from pytorch_lightning.plugins import DDPPlugin
 
 class VideoClassificationLightningModule(pl.LightningModule):
   
@@ -84,7 +87,6 @@ class VideoClassificationLightningModule(pl.LightningModule):
       data, label, meta = batch
       pred = self(data)
       loss = F.cross_entropy(pred, label)
-      self.log("val_loss", loss)
       
       top1_val_acc = self.top1_val_accuracy(pred, label)
       top3_val_acc = self.top3_val_accuracy(pred, label)
@@ -92,10 +94,10 @@ class VideoClassificationLightningModule(pl.LightningModule):
       probs = F.softmax(pred, dim=1)
       val_mAP = torchmetrics.functional.average_precision(probs, label, num_classes=9, average='macro') 
 
-      self.log('top1_train_acc', top1_val_acc, logger=False, on_epoch=False, on_step=False, prog_bar=True)
-      self.log('top3_train_acc', top3_val_acc, logger=False, on_epoch=False, on_step=False, prog_bar=True)
+      self.log('top1_val_acc', top1_val_acc, logger=False, on_epoch=False, on_step=True, prog_bar=True)
+      self.log('top3_val_acc', top3_val_acc, logger=False, on_epoch=False, on_step=True, prog_bar=True)
       self.log('val_mAP', val_mAP, logger=True, on_epoch=False, on_step=True, prog_bar=True)
-      self.log('train_loss', loss, logger=True, on_epoch=True, on_step=True)
+      self.log('val_loss', loss, logger=True, on_epoch=True, on_step=True)
       
       return {"loss": loss, "logs": {"val_loss": loss.detach(), "top1_val_acc": top1_val_acc, "top3_val_acc": top3_val_acc, "val_mAP": val_mAP}}
 
@@ -109,7 +111,7 @@ class VideoClassificationLightningModule(pl.LightningModule):
 
         # Log mAP
         val_mAP_epoch = torch.stack([x['logs']['val_mAP'] for x in outputs])
-        self.log('val_mAP', val_mAP_epoch, logger=True, on_epoch=True, on_step=False, prog_bar=True)
+        self.log('val_mAP_epoch', val_mAP_epoch, logger=True, on_epoch=True, on_step=False, prog_bar=True)
 
         # Log epoch loss
         loss = torch.stack([x['loss'] for x in outputs]).mean()
@@ -126,6 +128,7 @@ def main(args):
     
     # Input all needs to come for argparse eventually...
     classification_module = VideoClassificationLightningModule(model_name='slow_r50', freeze_backbone=True)
+    
     data_module = PanAfDataModule(batch_size=args.batch_size,
             num_workers = args.num_workers,
             sample_interval = args.sample_interval,
@@ -134,7 +137,32 @@ def main(args):
             compute = args.compute
             )
     
-    trainer = pl.Trainer()
+    # Checkpoint callbacks    
+    val_acc_checkpoint = ModelCheckpoint(
+        monitor="val_top1_acc_epoch",
+        dirpath="/mnt/storage/scratch/dl18206/behaviour_recognition/acc",
+        filename="best_validation_acc_epoch={epoch}",
+        mode="max"
+    )
+    
+    val_mAP_checkpoint = ModelCheckpoint(
+        monitor="val_mAP_epoch",
+        dirpath="/mnt/storage/scratch/dl18206/behaviour_recognition/mAP",
+        filename="best_validation_mAP_epoch={epoch}",
+        mode="max"
+    )
+
+    tb_logger = loggers.TensorBoardLogger('log', name='behaviour_recognition')
+
+
+    trainer = pl.Trainer(callbacks=[val_acc_checkpoint, val_mAP_checkpoint],
+                    gpus=1, 
+                    num_nodes=1,
+                    strategy=DDPPlugin(find_unused_parameters=True),
+                    precision=16,
+                    min_epochs=50) 
+    
+    # trainer = pl.Trainer()
     trainer.fit(classification_module, data_module)
 
 if __name__== "__main__":
