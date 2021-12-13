@@ -127,7 +127,7 @@ class VideoClassificationLightningModule(pl.LightningModule):
 def main(args):
     
     # Input all needs to come for argparse eventually...
-    classification_module = VideoClassificationLightningModule(model_name='slow_r50', freeze_backbone=True)
+    classification_module = VideoClassificationLightningModule(model_name='slow_r50', freeze_backbone=args.freeze_backbone)
     
     data_module = PanAfDataModule(batch_size=args.batch_size,
             num_workers = args.num_workers,
@@ -154,30 +154,50 @@ def main(args):
 
     tb_logger = loggers.TensorBoardLogger('log', name='behaviour_recognition')
 
-
-    trainer = pl.Trainer(callbacks=[val_acc_checkpoint, val_mAP_checkpoint],
-                    gpus=1, 
-                    num_nodes=1,
-                    strategy=DDPPlugin(find_unused_parameters=True),
-                    precision=16,
-                    min_epochs=50) 
+    if(args.gpus > 0):
+        trainer = pl.Trainer(callbacks=[val_acc_checkpoint, val_mAP_checkpoint],
+                        gpus=args.gpus, 
+                        num_nodes=args.nodes,
+                        strategy=DDPPlugin(find_unused_parameters=True),
+                        precision=16,
+                        min_epochs=args.epochs) 
+    else:    
+        trainer = pl.Trainer()
     
-    # trainer = pl.Trainer()
     trainer.fit(classification_module, data_module)
 
 if __name__== "__main__":
    
     parser = argparse.ArgumentParser(description='Process some integers.')
-    parser.add_argument('--batch_size', type=int, default=4)
-    parser.add_argument('--num_workers', type=int, default=6)
-    parser.add_argument('--sample_interval', type=int, default=10, 
-            help='The interval between consecutive frames to sample')
-    parser.add_argument('--seq_length', type=int, default=5,
-            help='The length of the sequence to sample')
-    parser.add_argument('--behaviour_threshold', type=int, default=72,
-            help='The length of time (in frames...) a behaviour must be exhibited to be a valid sample at training time')
-    parser.add_argument('--compute', type=str, default='local',
+    
+    # Running locally or in the cloud
+    parser.add_argument('--compute', type=str, required=True,
             help='Specify either "local" or "hpc"')
+
+    # Specify nodes and GPUs
+    parser.add_argument('--gpus', type=int, default=0, required=False,
+            help='Specify the number of GPUs per node for training. Default is 0 (i.e. train on CPU)')
+    parser.add_argument('--nodes', type=int, default=1, required=False,
+            help='Specify the number of nodes used in training. Default is 0')
+    
+    # Training configuration
+    parser.add_argument('--batch_size', type=int, required=True, 
+            help='Specify the batch size per iteration of training')
+    parser.add_argument('--num_workers', type=int, required=True,
+            help='Specify the number of workers')
+    parser.add_argument('--freeze_backbone', type=int, required=True,
+            help='Specify whether to freeze layers EXCEPT the final layer for fine-tuning')
+    parser.add_argument('--epochs', type=int, default=10, required=False,
+            help='Specify the total number of training epochs')
+    
+    # Dataset and sample configuration
+    parser.add_argument('--sample_interval', type=int, default=10, 
+            help='The interval between consecutive frames to sample. Default is 10')
+    parser.add_argument('--seq_length', type=int, default=5,
+            help='The length of the sequence to sample. Default is 5')
+    parser.add_argument('--behaviour_threshold', type=int, default=72,
+            help='The length of time (in frames) a behaviour must be exhibited to be a valid sample at training time. Default is 72')
+
     args = parser.parse_args()
 
     main(args)
