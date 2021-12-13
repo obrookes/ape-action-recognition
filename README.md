@@ -1,3 +1,8 @@
+## TO DO
+
+- Checkover metric calculations
+- Include additional linear layer for dim reduction
+
 ## Usage
 
 ```bash
