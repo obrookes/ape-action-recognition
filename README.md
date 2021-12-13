@@ -1,5 +1,6 @@
 ## Usage
 
+```bash
 python train.py --compute='local'
                 --gpus=2
                 --nodes=1
