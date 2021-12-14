@@ -13,7 +13,7 @@ from pytorch_lightning.plugins import DDPPlugin
 
 class VideoClassificationLightningModule(pl.LightningModule):
   
-    def __init__(self, model_name, freeze_backbone):
+    def __init__(self, model_name, freeze_backbone, learning_rate):
       super().__init__()
 
 
@@ -38,7 +38,9 @@ class VideoClassificationLightningModule(pl.LightningModule):
       if self.freeze_backbone:
           for param in self.backbone.parameters():
               param.requires_grad = False
-      
+     
+      self.learning_rate = learning_rate
+
       # Metric initialisation
       self.top1_train_accuracy = torchmetrics.Accuracy(top_k=1)
       self.top3_train_accuracy = torchmetrics.Accuracy(top_k=3)
@@ -127,12 +129,17 @@ class VideoClassificationLightningModule(pl.LightningModule):
       Setup the Adam optimizer. Note, that this function also can return a lr scheduler, which is
       usually useful for training video models.
       """
-      return torch.optim.Adam(self.parameters(), lr=1e-3)
+      return torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+    
+    def get_lr(self):
+        return self.learning_rate
 
 def main(args):
     
     # Input all needs to come for argparse eventually...
-    classification_module = VideoClassificationLightningModule(model_name='slow_r50', freeze_backbone=args.freeze_backbone)
+    classification_module = VideoClassificationLightningModule(model_name='slow_r50',
+            freeze_backbone=args.freeze_backbone,
+            learning_rate=args.learning_rate)
     
     data_module = PanAfDataModule(batch_size=args.batch_size,
             num_workers = args.num_workers,
@@ -165,10 +172,15 @@ def main(args):
                         num_nodes=args.nodes,
                         strategy=DDPPlugin(find_unused_parameters=True),
                         precision=16,
-                        min_epochs=args.epochs) 
+                        min_epochs=args.epochs,
+                        auto_lr_find=True) 
     else:    
-        trainer = pl.Trainer()
-    
+        trainer = pl.Trainer(auto_lr_find=True) 
+
+    # Tune for optimum lr
+    trainer.tune(classification_module, data_module)
+
+    # Train
     trainer.fit(classification_module, data_module)
 
 if __name__== "__main__":
@@ -192,6 +204,7 @@ if __name__== "__main__":
             help='Specify the number of workers')
     parser.add_argument('--freeze_backbone', type=int, required=True,
             help='Specify whether to freeze layers EXCEPT the final layer for fine-tuning')
+    parser.add_argument('--learning_rate', type=float, default=0.001, required=False)
     parser.add_argument('--epochs', type=int, default=10, required=False,
             help='Specify the total number of training epochs')
     
