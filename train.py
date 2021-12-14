@@ -13,7 +13,7 @@ from pytorch_lightning.plugins import DDPPlugin
 
 class VideoClassificationLightningModule(pl.LightningModule):
   
-    def __init__(self, model_name, freeze_backbone):
+    def __init__(self, model_name, freeze_backbone, learning_rate):
       super().__init__()
 
 
@@ -27,14 +27,20 @@ class VideoClassificationLightningModule(pl.LightningModule):
       self.backbone = nn.Sequential(*list(pretrained_model.children())[0][:-1])
 
       # Attach a new head with specified class number (hard coded for now...)
-      self.head = create_res_basic_head(
-              in_features=2048, out_features=9
+      self.res_head = create_res_basic_head(
+              in_features=2048, out_features=500
       )
+
+      self.fc = nn.Linear(in_features=500, out_features=9)
       
+      self.dropout = nn.Dropout(p=0.25)
+
       if self.freeze_backbone:
           for param in self.backbone.parameters():
               param.requires_grad = False
-      
+     
+      self.learning_rate = learning_rate
+
       # Metric initialisation
       self.top1_train_accuracy = torchmetrics.Accuracy(top_k=1)
       self.top3_train_accuracy = torchmetrics.Accuracy(top_k=3)
@@ -42,7 +48,8 @@ class VideoClassificationLightningModule(pl.LightningModule):
       self.top3_val_accuracy = torchmetrics.Accuracy(top_k=3) 
 
     def forward(self, x):
-      return self.head(self.backbone(x))
+        output = self.dropout(self.res_head(self.backbone(x)))
+        return self.fc(output)
 
     def training_step(self, batch, batch_idx):
       # The model expects a video tensor of shape (B, C, T, H, W), which is the
@@ -54,13 +61,13 @@ class VideoClassificationLightningModule(pl.LightningModule):
       
       top1_train_acc = self.top1_train_accuracy(pred, label)
       top3_train_acc = self.top3_train_accuracy(pred, label)
-
+        
       probs = F.softmax(pred, dim=1)
       train_mAP = torchmetrics.functional.average_precision(probs, label, num_classes=9, average='macro')
       
       self.log('top1_train_acc', top1_train_acc, logger=False, on_epoch=False, on_step=True, prog_bar=True)
-      self.log('top3_train_acc', top3_train_acc, logger=False, on_epoch=False, on_step=True, prog_bar=True)
-      self.log('train_mAP', train_mAP, logger=True, on_epoch=False, on_step=True, prog_bar=True)
+      self.log('top3_train_acc', top3_train_acc, logger=False, on_epoch=False, on_step=True, prog_bar=False)
+      self.log('train_mAP', train_mAP, logger=True, on_epoch=False, on_step=True, prog_bar=False)
       self.log('train_loss', loss.item(), logger=True, on_epoch=True, on_step=True)
 
       return {"loss": loss, "logs": {"train_loss": loss.detach(), "top1_train_acc": top1_train_acc, "top3_train_acc": top3_train_acc, "train_mAP": train_mAP}}
@@ -75,11 +82,11 @@ class VideoClassificationLightningModule(pl.LightningModule):
 
         # Log mAP
         train_mAP_epoch = torch.stack([x['logs']['train_mAP'] for x in outputs]).mean()
-        self.log('train_mAP_epoch', train_mAP_epoch, logger=True, on_epoch=True, on_step=False, prog_bar=True) 
+        self.log('train_mAP_epoch', train_mAP_epoch, logger=True, on_epoch=True, on_step=False, prog_bar=False) 
 
         # Log epoch loss
         loss = torch.stack([x['loss'] for x in outputs]).mean()
-        self.log('train_loss_epoch', loss, logger=True, on_epoch=True, on_step=False, prog_bar=True)
+        self.log('train_loss_epoch', loss, logger=True, on_epoch=True, on_step=False, prog_bar=False)
  
 
     def validation_step(self, batch, batch_idx):
@@ -94,10 +101,10 @@ class VideoClassificationLightningModule(pl.LightningModule):
       probs = F.softmax(pred, dim=1)
       val_mAP = torchmetrics.functional.average_precision(probs, label, num_classes=9, average='macro') 
 
-      self.log('top1_val_acc', top1_val_acc, logger=False, on_epoch=False, on_step=True, prog_bar=True)
-      self.log('top3_val_acc', top3_val_acc, logger=False, on_epoch=False, on_step=True, prog_bar=True)
-      self.log('val_mAP', val_mAP, logger=True, on_epoch=False, on_step=True, prog_bar=True)
-      self.log('val_loss', loss, logger=True, on_epoch=True, on_step=True)
+      self.log('top1_val_acc', top1_val_acc, logger=False, on_epoch=False, on_step=True, prog_bar=False)
+      self.log('top3_val_acc', top3_val_acc, logger=False, on_epoch=False, on_step=True, prog_bar=False)
+      self.log('val_mAP', val_mAP, logger=True, on_epoch=False, on_step=True, prog_bar=False)
+      self.log('val_loss', loss, logger=True, on_epoch=True, on_step=False)
       
       return {"loss": loss, "logs": {"val_loss": loss.detach(), "top1_val_acc": top1_val_acc, "top3_val_acc": top3_val_acc, "val_mAP": val_mAP}}
 
@@ -111,23 +118,28 @@ class VideoClassificationLightningModule(pl.LightningModule):
 
         # Log mAP
         val_mAP_epoch = torch.stack([x['logs']['val_mAP'] for x in outputs])
-        self.log('val_mAP_epoch', val_mAP_epoch, logger=True, on_epoch=True, on_step=False, prog_bar=True)
+        self.log('val_mAP_epoch', val_mAP_epoch, logger=True, on_epoch=True, on_step=False, prog_bar=False)
 
         # Log epoch loss
         loss = torch.stack([x['loss'] for x in outputs]).mean()
-        self.log('val_loss_epoch', loss, logger=True, on_epoch=True, on_step=False, prog_bar=True)
+        self.log('val_loss_epoch', loss, logger=True, on_epoch=True, on_step=False, prog_bar=False)
  
     def configure_optimizers(self):
       """
       Setup the Adam optimizer. Note, that this function also can return a lr scheduler, which is
       usually useful for training video models.
       """
-      return torch.optim.Adam(self.parameters(), lr=1e-1)
+      return torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+    
+    def get_lr(self):
+        return self.learning_rate
 
 def main(args):
     
     # Input all needs to come for argparse eventually...
-    classification_module = VideoClassificationLightningModule(model_name='slow_r50', freeze_backbone=args.freeze_backbone)
+    classification_module = VideoClassificationLightningModule(model_name='slow_r50',
+            freeze_backbone=args.freeze_backbone,
+            learning_rate=args.learning_rate)
     
     data_module = PanAfDataModule(batch_size=args.batch_size,
             num_workers = args.num_workers,
@@ -162,8 +174,12 @@ def main(args):
                         precision=16,
                         min_epochs=args.epochs) 
     else:    
-        trainer = pl.Trainer()
-    
+        trainer = pl.Trainer(auto_lr_find=True) 
+
+    # Tune for optimum lr
+    # trainer.tune(classification_module, data_module)
+
+    # Train
     trainer.fit(classification_module, data_module)
 
 if __name__== "__main__":
@@ -187,6 +203,7 @@ if __name__== "__main__":
             help='Specify the number of workers')
     parser.add_argument('--freeze_backbone', type=int, required=True,
             help='Specify whether to freeze layers EXCEPT the final layer for fine-tuning')
+    parser.add_argument('--learning_rate', type=float, default=0.001, required=False)
     parser.add_argument('--epochs', type=int, default=10, required=False,
             help='Specify the total number of training epochs')
     
