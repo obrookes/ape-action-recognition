@@ -4,6 +4,7 @@ import pytorchvideo.data
 import torch.utils.data
 from dataset.dataset import LightningGreatApeDataset
 from dataset.sampler import BalancedBatchSampler
+from catalyst.data import DistributedSamplerWrapper 
 
 class PanAfDataModule(pytorch_lightning.LightningDataModule):
 
@@ -61,7 +62,7 @@ class PanAfDataModule(pytorch_lightning.LightningDataModule):
         )
         
         if(self.balanced_sampling==True):
-            self.sampler = BalancedBatchSampler(train_dataset, train_dataset.labels)
+            self.sampler = DistributedSamplerWrapper(BalancedBatchSampler(train_dataset, train_dataset.labels))
         else:
             self.sampler = None
 
