@@ -27,10 +27,14 @@ class VideoClassificationLightningModule(pl.LightningModule):
       self.backbone = nn.Sequential(*list(pretrained_model.children())[0][:-1])
 
       # Attach a new head with specified class number (hard coded for now...)
-      self.head = create_res_basic_head(
-              in_features=2048, out_features=9
+      self.res_head = create_res_basic_head(
+              in_features=2048, out_features=500
       )
+
+      self.fc = nn.Linear(in_features=500, out_features=9)
       
+      self.dropout = nn.Dropout(p=0.25)
+
       if self.freeze_backbone:
           for param in self.backbone.parameters():
               param.requires_grad = False
@@ -42,7 +46,8 @@ class VideoClassificationLightningModule(pl.LightningModule):
       self.top3_val_accuracy = torchmetrics.Accuracy(top_k=3) 
 
     def forward(self, x):
-      return self.head(self.backbone(x))
+        output = self.dropout(self.res_head(self.backbone(x)))
+        return self.fc(output)
 
     def training_step(self, batch, batch_idx):
       # The model expects a video tensor of shape (B, C, T, H, W), which is the
@@ -122,7 +127,7 @@ class VideoClassificationLightningModule(pl.LightningModule):
       Setup the Adam optimizer. Note, that this function also can return a lr scheduler, which is
       usually useful for training video models.
       """
-      return torch.optim.Adam(self.parameters(), lr=1e-1)
+      return torch.optim.Adam(self.parameters(), lr=1e-3)
 
 def main(args):
     
