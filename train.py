@@ -63,14 +63,8 @@ class VideoClassificationLightningModule(pl.LightningModule):
       top3_train_acc = self.top3_train_accuracy(pred, label)
         
       probs = F.softmax(pred, dim=1)
-      
-      print(f"Probs: {probs}")
-      print(f"Label: {label}")
-        
       train_mAP = torchmetrics.functional.average_precision(probs, label, num_classes=9, average='macro')
       
-      print(f"mAP: {train_mAP}")
-
       self.log('top1_train_acc', top1_train_acc, logger=False, on_epoch=False, on_step=True, prog_bar=True)
       self.log('top3_train_acc', top3_train_acc, logger=False, on_epoch=False, on_step=True, prog_bar=False)
       self.log('train_mAP', train_mAP, logger=True, on_epoch=False, on_step=True, prog_bar=False)
