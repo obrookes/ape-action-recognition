@@ -204,13 +204,13 @@ if __name__== "__main__":
             help='Specify the number of workers')
     parser.add_argument('--freeze_backbone', type=int, required=True,
             help='Specify whether to freeze layers EXCEPT the final layer for fine-tuning')
-    parser.add_argument('--learning_rate', type=float, default=0.001, required=False)
+    parser.add_argument('--learning_rate', type=float, default=0.0001, required=False)
     parser.add_argument('--epochs', type=int, default=10, required=False,
             help='Specify the total number of training epochs')
     
     # Dataset and sample configuration
-    parser.add_argument('--sample_interval', type=int, default=10, 
-            help='The interval between consecutive frames to sample. Default is 10')
+    parser.add_argument('--sample_interval', type=int, default=20, 
+            help='The interval between consecutive frames to sample. Default is 20')
     parser.add_argument('--seq_length', type=int, default=5,
             help='The length of the sequence to sample. Default is 5')
     parser.add_argument('--behaviour_threshold', type=int, default=72,
