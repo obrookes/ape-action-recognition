@@ -167,11 +167,12 @@ def main(args):
     tb_logger = loggers.TensorBoardLogger('log', name='behaviour_recognition')
 
     if(args.gpus > 0):
-        trainer = pl.Trainer(callbacks=[val_acc_checkpoint, val_mAP_checkpoint],
+        trainer = pl.Trainer(callbacks=[val_acc_checkpoint, val_mAP_checkpoint, ],
                         gpus=args.gpus, 
                         num_nodes=args.nodes,
                         strategy=DDPPlugin(find_unused_parameters=True),
                         precision=16,
+                        stochastic_weight_avg=True, 
                         min_epochs=args.epochs) 
     else:    
         trainer = pl.Trainer(auto_lr_find=True) 
