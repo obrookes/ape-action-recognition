@@ -172,13 +172,12 @@ def main(args):
                         num_nodes=args.nodes,
                         strategy=DDPPlugin(find_unused_parameters=True),
                         precision=16,
-                        min_epochs=args.epochs,
-                        auto_lr_find=True) 
+                        min_epochs=args.epochs) 
     else:    
         trainer = pl.Trainer(auto_lr_find=True) 
 
     # Tune for optimum lr
-    trainer.tune(classification_module, data_module)
+    # trainer.tune(classification_module, data_module)
 
     # Train
     trainer.fit(classification_module, data_module)
