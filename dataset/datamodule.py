@@ -3,6 +3,7 @@ import pytorch_lightning
 import pytorchvideo.data
 import torch.utils.data
 from dataset.dataset import LightningGreatApeDataset
+from dataset.sampler import BalancedBatchSampler
 
 class PanAfDataModule(pytorch_lightning.LightningDataModule):
 
@@ -12,6 +13,7 @@ class PanAfDataModule(pytorch_lightning.LightningDataModule):
             sample_interval,
             seq_length,
             behaviour_threshold,
+            balanced_sampling,
             compute
             ):
         
@@ -21,6 +23,7 @@ class PanAfDataModule(pytorch_lightning.LightningDataModule):
         self.sample_interval = sample_interval
         self.seq_length = seq_length
         self.behaviour_threshold = behaviour_threshold
+        self.balanced_sampling = balanced_sampling
         self.compute = compute
 
         if(self.compute=='local'):
@@ -56,12 +59,18 @@ class PanAfDataModule(pytorch_lightning.LightningDataModule):
             video_names=self._TRAIN_VIDEOS,
             classes=self._CLASSES
         )
+        
+        if(self.balanced_sampling==True):
+            self.sampler = BalancedBatchSampler(train_dataset, train_dataset.labels)
+        else:
+            self.sampler = None
 
         return torch.utils.data.DataLoader(
             train_dataset,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            shuffle=True
+            sampler=self.sampler,
+            shuffle=False
         )
 
     def val_dataloader(self):

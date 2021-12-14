@@ -57,6 +57,8 @@ class VideoClassificationLightningModule(pl.LightningModule):
       data, label, meta = batch
       pred = self(data)
 
+      print(f"Label: {label}")
+
       loss = F.cross_entropy(pred, label)
       
       top1_train_acc = self.top1_train_accuracy(pred, label)
@@ -146,6 +148,7 @@ def main(args):
             sample_interval = args.sample_interval,
             seq_length = args.seq_length,
             behaviour_threshold = args.behaviour_threshold,
+            balanced_sampling=args.balanced_sampling,
             compute = args.compute
             )
     
@@ -200,6 +203,8 @@ if __name__== "__main__":
     # Training configuration
     parser.add_argument('--batch_size', type=int, required=True, 
             help='Specify the batch size per iteration of training')
+    parser.add_argument('--balanced_sampling', type=int, default=0,
+            help='Specify whether to use balanced batches (1) or not (0)')
     parser.add_argument('--num_workers', type=int, required=True,
             help='Specify the number of workers')
     parser.add_argument('--freeze_backbone', type=int, required=True,
