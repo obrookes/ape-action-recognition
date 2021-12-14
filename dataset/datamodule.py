@@ -61,6 +61,7 @@ class PanAfDataModule(pytorch_lightning.LightningDataModule):
             train_dataset,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
+            shuffle=True
         )
 
     def val_dataloader(self):
@@ -68,9 +69,9 @@ class PanAfDataModule(pytorch_lightning.LightningDataModule):
        val_dataset = LightningGreatApeDataset(
             data=self._FRAMES,
             annotations=self._ANNOTATIONS,
-            sample_interval=5,
-            sequence_length=5,
-            activity_duration_threshold=10,
+            sample_interval=self.sample_interval,
+            sequence_length=self.seq_length,
+            activity_duration_threshold=self.behaviour_threshold,
             jitter=False,
             flip=False,
             rotation=False,
@@ -84,4 +85,5 @@ class PanAfDataModule(pytorch_lightning.LightningDataModule):
             val_dataset,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
+            shuffle=False
             )
