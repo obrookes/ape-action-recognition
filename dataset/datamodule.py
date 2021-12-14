@@ -62,7 +62,9 @@ class PanAfDataModule(pytorch_lightning.LightningDataModule):
         )
         
         if(self.balanced_sampling==True):
+            print("==> Wrapping BalancedBatchSampler")
             self.sampler = DistributedSamplerWrapper(BalancedBatchSampler(train_dataset, train_dataset.labels))
+            print("==> Wrapped!")
         else:
             self.sampler = None
 
