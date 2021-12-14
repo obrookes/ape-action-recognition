@@ -202,8 +202,8 @@ if __name__== "__main__":
     # Training configuration
     parser.add_argument('--batch_size', type=int, required=True, 
             help='Specify the batch size per iteration of training')
-    parser.add_argument('--balanced_sampling', type=int, default=0,
-            help='Specify whether to use balanced batches (1) or not (0)')
+    parser.add_argument('--balanced_sampling', type=str, default=None,
+            help='Specify "balanced" or "dynamic". The default is None.')
     parser.add_argument('--num_workers', type=int, required=True,
             help='Specify the number of workers')
     parser.add_argument('--freeze_backbone', type=int, required=True,
