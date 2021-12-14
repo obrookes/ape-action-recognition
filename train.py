@@ -57,8 +57,6 @@ class VideoClassificationLightningModule(pl.LightningModule):
       data, label, meta = batch
       pred = self(data)
 
-      print(f"Label: {label}")
-
       loss = F.cross_entropy(pred, label)
       
       top1_train_acc = self.top1_train_accuracy(pred, label)
@@ -170,7 +168,8 @@ def main(args):
     tb_logger = loggers.TensorBoardLogger('log', name='behaviour_recognition')
 
     if(args.gpus > 0):
-        trainer = pl.Trainer(callbacks=[val_acc_checkpoint, val_mAP_checkpoint, ],
+        trainer = pl.Trainer(callbacks=[val_acc_checkpoint, val_mAP_checkpoint],
+                        replace_sampler_ddp=False,
                         gpus=args.gpus, 
                         num_nodes=args.nodes,
                         strategy=DDPPlugin(find_unused_parameters=True),
