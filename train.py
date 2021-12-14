@@ -61,13 +61,19 @@ class VideoClassificationLightningModule(pl.LightningModule):
       
       top1_train_acc = self.top1_train_accuracy(pred, label)
       top3_train_acc = self.top3_train_accuracy(pred, label)
-
+        
       probs = F.softmax(pred, dim=1)
+      
+      print(f"Probs: {probs}")
+      print(f"Label: {label}")
+        
       train_mAP = torchmetrics.functional.average_precision(probs, label, num_classes=9, average='macro')
       
+      print(f"mAP: {train_mAP}")
+
       self.log('top1_train_acc', top1_train_acc, logger=False, on_epoch=False, on_step=True, prog_bar=True)
-      self.log('top3_train_acc', top3_train_acc, logger=False, on_epoch=False, on_step=True, prog_bar=True)
-      self.log('train_mAP', train_mAP, logger=True, on_epoch=False, on_step=True, prog_bar=True)
+      self.log('top3_train_acc', top3_train_acc, logger=False, on_epoch=False, on_step=True, prog_bar=False)
+      self.log('train_mAP', train_mAP, logger=True, on_epoch=False, on_step=True, prog_bar=False)
       self.log('train_loss', loss.item(), logger=True, on_epoch=True, on_step=True)
 
       return {"loss": loss, "logs": {"train_loss": loss.detach(), "top1_train_acc": top1_train_acc, "top3_train_acc": top3_train_acc, "train_mAP": train_mAP}}
@@ -82,11 +88,11 @@ class VideoClassificationLightningModule(pl.LightningModule):
 
         # Log mAP
         train_mAP_epoch = torch.stack([x['logs']['train_mAP'] for x in outputs]).mean()
-        self.log('train_mAP_epoch', train_mAP_epoch, logger=True, on_epoch=True, on_step=False, prog_bar=True) 
+        self.log('train_mAP_epoch', train_mAP_epoch, logger=True, on_epoch=True, on_step=False, prog_bar=False) 
 
         # Log epoch loss
         loss = torch.stack([x['loss'] for x in outputs]).mean()
-        self.log('train_loss_epoch', loss, logger=True, on_epoch=True, on_step=False, prog_bar=True)
+        self.log('train_loss_epoch', loss, logger=True, on_epoch=True, on_step=False, prog_bar=False)
  
 
     def validation_step(self, batch, batch_idx):
@@ -101,10 +107,10 @@ class VideoClassificationLightningModule(pl.LightningModule):
       probs = F.softmax(pred, dim=1)
       val_mAP = torchmetrics.functional.average_precision(probs, label, num_classes=9, average='macro') 
 
-      self.log('top1_val_acc', top1_val_acc, logger=False, on_epoch=False, on_step=True, prog_bar=True)
-      self.log('top3_val_acc', top3_val_acc, logger=False, on_epoch=False, on_step=True, prog_bar=True)
-      self.log('val_mAP', val_mAP, logger=True, on_epoch=False, on_step=True, prog_bar=True)
-      self.log('val_loss', loss, logger=True, on_epoch=True, on_step=True)
+      self.log('top1_val_acc', top1_val_acc, logger=False, on_epoch=False, on_step=True, prog_bar=False)
+      self.log('top3_val_acc', top3_val_acc, logger=False, on_epoch=False, on_step=True, prog_bar=False)
+      self.log('val_mAP', val_mAP, logger=True, on_epoch=False, on_step=True, prog_bar=False)
+      self.log('val_loss', loss, logger=True, on_epoch=True, on_step=False)
       
       return {"loss": loss, "logs": {"val_loss": loss.detach(), "top1_val_acc": top1_val_acc, "top3_val_acc": top3_val_acc, "val_mAP": val_mAP}}
 
@@ -118,11 +124,11 @@ class VideoClassificationLightningModule(pl.LightningModule):
 
         # Log mAP
         val_mAP_epoch = torch.stack([x['logs']['val_mAP'] for x in outputs])
-        self.log('val_mAP_epoch', val_mAP_epoch, logger=True, on_epoch=True, on_step=False, prog_bar=True)
+        self.log('val_mAP_epoch', val_mAP_epoch, logger=True, on_epoch=True, on_step=False, prog_bar=False)
 
         # Log epoch loss
         loss = torch.stack([x['loss'] for x in outputs]).mean()
-        self.log('val_loss_epoch', loss, logger=True, on_epoch=True, on_step=False, prog_bar=True)
+        self.log('val_loss_epoch', loss, logger=True, on_epoch=True, on_step=False, prog_bar=False)
  
     def configure_optimizers(self):
       """
