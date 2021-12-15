@@ -1,3 +1,7 @@
+## TODO
+
+- Focal loss implementation for addressing class imbalance
+
 ## Installation
 
 Firstly, clone this repository.
