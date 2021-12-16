@@ -3,6 +3,7 @@ import torchmetrics
 import argparse
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 import pytorch_lightning as pl
 import pytorchvideo.models.resnet
 from pytorchvideo.models.head import create_res_basic_head
@@ -14,11 +15,12 @@ from kornia.losses import FocalLoss
 
 class VideoClassificationLightningModule(pl.LightningModule):
   
-    def __init__(self, model_name, freeze_backbone, learning_rate, loss):
+    def __init__(self, model_name, optimiser, freeze_backbone, learning_rate, loss):
       super().__init__()
 
 
       self.model_name = model_name
+      self.optimiser = optimiser
       self.freeze_backbone = freeze_backbone
     
       # Load pretrained model
@@ -46,7 +48,7 @@ class VideoClassificationLightningModule(pl.LightningModule):
               self.loss = FocalLoss(alpha=1.0, gamma=2.0, reduction="mean")
       if(loss == "cross_entropy"):
               self.loss = nn.CrossEntropyLoss()
-
+    
       # Metric initialisation
       self.top1_train_accuracy = torchmetrics.Accuracy(top_k=1)
       self.top3_train_accuracy = torchmetrics.Accuracy(top_k=3)
@@ -135,7 +137,21 @@ class VideoClassificationLightningModule(pl.LightningModule):
       Setup the Adam optimizer. Note, that this function also can return a lr scheduler, which is
       usually useful for training video models.
       """
-      return torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+      if(self.optimiser=='sgd'):
+          optimiser=torch.optim.SGD(self.parameters(), lr=self.learning_rate)
+      elif(self.optimiser=='adam'):
+          optimiser=torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+      else:
+          raise ValueError('Unknown argument passed to --optimiser')
+      
+      return {
+              "optimizer": optimiser,
+              "lr_scheduler": {
+                  "scheduler": ReduceLROnPlateau(optimizer=optimiser, mode="max", patience=5, verbose=True),
+                  "monitor": "val_mAP_epoch",
+                  "frequency": 1
+            },
+        }
     
     def get_lr(self):
         return self.learning_rate
@@ -144,6 +160,7 @@ def main(args):
     
     # Input all needs to come for argparse eventually...
     classification_module = VideoClassificationLightningModule(model_name='slow_r50',
+            optimiser='sgd',
             freeze_backbone=args.freeze_backbone,
             learning_rate=args.learning_rate,
             loss=args.loss)
