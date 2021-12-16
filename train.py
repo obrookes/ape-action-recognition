@@ -15,11 +15,17 @@ from kornia.losses import FocalLoss
 
 class VideoClassificationLightningModule(pl.LightningModule):
   
-    def __init__(self, model_name, optimiser, freeze_backbone, learning_rate, loss):
+    def __init__(self, model_name, loss, optimiser, freeze_backbone, learning_rate, momentum, weight_decay):
       super().__init__()
 
-
+      
       self.model_name = model_name
+
+      if(loss == "focal"):
+              self.loss = FocalLoss(alpha=1.0, gamma=2.0, reduction="mean")
+      if(loss == "cross_entropy"):
+              self.loss = nn.CrossEntropyLoss()
+
       self.optimiser = optimiser
       self.freeze_backbone = freeze_backbone
     
@@ -43,11 +49,8 @@ class VideoClassificationLightningModule(pl.LightningModule):
               param.requires_grad = False
      
       self.learning_rate = learning_rate
-
-      if(loss == "focal"):
-              self.loss = FocalLoss(alpha=1.0, gamma=2.0, reduction="mean")
-      if(loss == "cross_entropy"):
-              self.loss = nn.CrossEntropyLoss()
+      self.momentum = momentum
+      self.weight_decay = weight_decay
     
       # Metric initialisation
       self.top1_train_accuracy = torchmetrics.Accuracy(top_k=1)
@@ -138,9 +141,9 @@ class VideoClassificationLightningModule(pl.LightningModule):
       usually useful for training video models.
       """
       if(self.optimiser=='sgd'):
-          optimiser=torch.optim.SGD(self.parameters(), lr=self.learning_rate)
+          optimiser=torch.optim.SGD(self.parameters(), lr=self.learning_rate, momentum=self.momentum, weight_decay=self.weight_decay)
       elif(self.optimiser=='adam'):
-          optimiser=torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+          optimiser=torch.optim.Adam(self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
       else:
           raise ValueError('Unknown argument passed to --optimiser')
       
@@ -160,10 +163,13 @@ def main(args):
     
     # Input all needs to come for argparse eventually...
     classification_module = VideoClassificationLightningModule(model_name='slow_r50',
-            optimiser='sgd',
+            loss=args.loss,
+            optimiser=args.optimiser,
             freeze_backbone=args.freeze_backbone,
             learning_rate=args.learning_rate,
-            loss=args.loss)
+            momentum=args.momentum,
+            weight_decay=args.weight_decay
+            )
     
     data_module = PanAfDataModule(batch_size=args.batch_size,
             num_workers = args.num_workers,
@@ -213,32 +219,38 @@ if __name__== "__main__":
    
     parser = argparse.ArgumentParser(description='Process some integers.')
     
-    # Running locally or in the cloud
+    # Trainer args - specify nodes and GPUs
     parser.add_argument('--compute', type=str, required=True,
             help='Specify either "local" or "hpc"')
-
-    # Specify nodes and GPUs
     parser.add_argument('--gpus', type=int, default=0, required=False,
             help='Specify the number of GPUs per node for training. Default is 0 (i.e. train on CPU)')
     parser.add_argument('--nodes', type=int, default=1, required=False,
             help='Specify the number of nodes used in training. Default is 0')
     
-    # Training configuration
+    # Training configuration - sampling
     parser.add_argument('--batch_size', type=int, required=True, 
             help='Specify the batch size per iteration of training')
     parser.add_argument('--balanced_sampling', type=str, default=None,
             help='Specify "balanced" or "dynamic". The default is None.')
     parser.add_argument('--num_workers', type=int, required=True,
             help='Specify the number of workers')
+
+    # Training configuration - optimisation
+    parser.add_argument('--loss', type=str, default='cross_entropy', required=False,
+            help='Specify loss function i.e. "focal" or "cross_entropy". Default is "cross_entropy"')
+    parser.add_argument('--optimiser', type=str, default='sgd', required=False,
+            help='Specify optimiser i.e. "sgd" or "adam". Default is "sgd"')
     parser.add_argument('--freeze_backbone', type=int, required=True,
             help='Specify whether to freeze layers EXCEPT the final layer for fine-tuning')
     parser.add_argument('--learning_rate', type=float, default=0.0001, required=False)
-    parser.add_argument('--loss', type=str, default='cross_entropy', required=False,
-            help='Specify loss function i.e. "focal" or "cross_entropy". Default is "cross_entropy"')
+    parser.add_argument('--momentum', type=float, default=0, required=False)
+    parser.add_argument('--weight_decay', type=float, default=0, required=False)
+
+    # Epochs
     parser.add_argument('--epochs', type=int, default=10, required=False,
             help='Specify the total number of training epochs')
     
-    # Dataset and sample configuration
+    # Dataset configuration
     parser.add_argument('--sample_interval', type=int, default=20, 
             help='The interval between consecutive frames to sample. Default is 20')
     parser.add_argument('--seq_length', type=int, default=5,
