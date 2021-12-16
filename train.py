@@ -10,10 +10,11 @@ from dataset.datamodule import PanAfDataModule
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning import loggers
 from pytorch_lightning.plugins import DDPPlugin
+from kornia.losses import FocalLoss
 
 class VideoClassificationLightningModule(pl.LightningModule):
   
-    def __init__(self, model_name, freeze_backbone, learning_rate):
+    def __init__(self, model_name, freeze_backbone, learning_rate, loss):
       super().__init__()
 
 
@@ -41,6 +42,11 @@ class VideoClassificationLightningModule(pl.LightningModule):
      
       self.learning_rate = learning_rate
 
+      if(loss == "focal"):
+              self.loss = FocalLoss(alpha=1.0, gamma=2.0, reduction="mean")
+      if(loss == "cross_entropy"):
+              self.loss = nn.CrossEntropyLoss()
+
       # Metric initialisation
       self.top1_train_accuracy = torchmetrics.Accuracy(top_k=1)
       self.top3_train_accuracy = torchmetrics.Accuracy(top_k=3)
@@ -57,7 +63,7 @@ class VideoClassificationLightningModule(pl.LightningModule):
       data, label, meta = batch
       pred = self(data)
 
-      loss = F.cross_entropy(pred, label)
+      loss = self.loss(pred, label)
       
       top1_train_acc = self.top1_train_accuracy(pred, label)
       top3_train_acc = self.top3_train_accuracy(pred, label)
@@ -139,7 +145,8 @@ def main(args):
     # Input all needs to come for argparse eventually...
     classification_module = VideoClassificationLightningModule(model_name='slow_r50',
             freeze_backbone=args.freeze_backbone,
-            learning_rate=args.learning_rate)
+            learning_rate=args.learning_rate,
+            loss=args.loss)
     
     data_module = PanAfDataModule(batch_size=args.batch_size,
             num_workers = args.num_workers,
@@ -209,6 +216,8 @@ if __name__== "__main__":
     parser.add_argument('--freeze_backbone', type=int, required=True,
             help='Specify whether to freeze layers EXCEPT the final layer for fine-tuning')
     parser.add_argument('--learning_rate', type=float, default=0.0001, required=False)
+    parser.add_argument('--loss', type=str, default='cross_entropy', required=False,
+            help='Specify loss function i.e. "focal" or "cross_entropy". Default is "cross_entropy"')
     parser.add_argument('--epochs', type=int, default=10, required=False,
             help='Specify the total number of training epochs')
     
@@ -219,6 +228,8 @@ if __name__== "__main__":
             help='The length of the sequence to sample. Default is 5')
     parser.add_argument('--behaviour_threshold', type=int, default=72,
             help='The length of time (in frames) a behaviour must be exhibited to be a valid sample at training time. Default is 72')
+
+    # Add loss arg...
 
     args = parser.parse_args()
 
