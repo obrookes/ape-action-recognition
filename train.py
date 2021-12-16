@@ -15,14 +15,14 @@ from kornia.losses import FocalLoss
 
 class VideoClassificationLightningModule(pl.LightningModule):
   
-    def __init__(self, model_name, loss, optimiser, freeze_backbone, learning_rate, momentum, weight_decay):
+    def __init__(self, model_name, loss, alpha, gamma, optimiser, freeze_backbone, learning_rate, momentum, weight_decay):
       super().__init__()
 
       
       self.model_name = model_name
 
       if(loss == "focal"):
-              self.loss = FocalLoss(alpha=1.0, gamma=2.0, reduction="mean")
+              self.loss = FocalLoss(alpha=alpha, gamma=gamma, reduction="mean")
       if(loss == "cross_entropy"):
               self.loss = nn.CrossEntropyLoss()
 
@@ -227,7 +227,7 @@ if __name__== "__main__":
     parser.add_argument('--nodes', type=int, default=1, required=False,
             help='Specify the number of nodes used in training. Default is 0')
     
-    # Training configuration - sampling
+    # Training config - sampling
     parser.add_argument('--batch_size', type=int, required=True, 
             help='Specify the batch size per iteration of training')
     parser.add_argument('--balanced_sampling', type=str, default=None,
@@ -235,18 +235,26 @@ if __name__== "__main__":
     parser.add_argument('--num_workers', type=int, required=True,
             help='Specify the number of workers')
 
-    # Training configuration - optimisation
+    # Training config - loss
     parser.add_argument('--loss', type=str, default='cross_entropy', required=False,
-            help='Specify loss function i.e. "focal" or "cross_entropy". Default is "cross_entropy"')
+            help='Specify loss function i.e. "focal" or "cross_entropy". Default is "cross_entropy"')    
+    parser.add_argument('--alpha', type=float, default=1, required=False)
+    parser.add_argument('--gamma', type=float, default=2, required=False)
+
+    # Training config - optimiser
     parser.add_argument('--optimiser', type=str, default='sgd', required=False,
             help='Specify optimiser i.e. "sgd" or "adam". Default is "sgd"')
+
+    # Training config - fine-tuning
     parser.add_argument('--freeze_backbone', type=int, required=True,
             help='Specify whether to freeze layers EXCEPT the final layer for fine-tuning')
+    
+    # Training config = other hparams
     parser.add_argument('--learning_rate', type=float, default=0.0001, required=False)
     parser.add_argument('--momentum', type=float, default=0, required=False)
     parser.add_argument('--weight_decay', type=float, default=0, required=False)
 
-    # Epochs
+    # Training config - epochs
     parser.add_argument('--epochs', type=int, default=10, required=False,
             help='Specify the total number of training epochs')
     
