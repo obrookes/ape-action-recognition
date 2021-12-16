@@ -164,6 +164,8 @@ def main(args):
     # Input all needs to come for argparse eventually...
     classification_module = VideoClassificationLightningModule(model_name='slow_r50',
             loss=args.loss,
+            alpha=args.alpha,
+            gamma=args.gamma,
             optimiser=args.optimiser,
             freeze_backbone=args.freeze_backbone,
             learning_rate=args.learning_rate,
