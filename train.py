@@ -3,6 +3,7 @@ import torchmetrics
 import argparse
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 import pytorch_lightning as pl
 import pytorchvideo.models.resnet
 from pytorchvideo.models.head import create_res_basic_head
@@ -10,14 +11,22 @@ from dataset.datamodule import PanAfDataModule
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning import loggers
 from pytorch_lightning.plugins import DDPPlugin
+from kornia.losses import FocalLoss
 
 class VideoClassificationLightningModule(pl.LightningModule):
   
-    def __init__(self, model_name, freeze_backbone, learning_rate):
+    def __init__(self, model_name, loss, alpha, gamma, optimiser, freeze_backbone, learning_rate, momentum, weight_decay):
       super().__init__()
 
-
+      
       self.model_name = model_name
+
+      if(loss == "focal"):
+              self.loss = FocalLoss(alpha=alpha, gamma=gamma, reduction="mean")
+      if(loss == "cross_entropy"):
+              self.loss = nn.CrossEntropyLoss()
+
+      self.optimiser = optimiser
       self.freeze_backbone = freeze_backbone
     
       # Load pretrained model
@@ -40,7 +49,9 @@ class VideoClassificationLightningModule(pl.LightningModule):
               param.requires_grad = False
      
       self.learning_rate = learning_rate
-
+      self.momentum = momentum
+      self.weight_decay = weight_decay
+    
       # Metric initialisation
       self.top1_train_accuracy = torchmetrics.Accuracy(top_k=1)
       self.top3_train_accuracy = torchmetrics.Accuracy(top_k=3)
@@ -57,7 +68,7 @@ class VideoClassificationLightningModule(pl.LightningModule):
       data, label, meta = batch
       pred = self(data)
 
-      loss = F.cross_entropy(pred, label)
+      loss = self.loss(pred, label)
       
       top1_train_acc = self.top1_train_accuracy(pred, label)
       top3_train_acc = self.top3_train_accuracy(pred, label)
@@ -129,7 +140,21 @@ class VideoClassificationLightningModule(pl.LightningModule):
       Setup the Adam optimizer. Note, that this function also can return a lr scheduler, which is
       usually useful for training video models.
       """
-      return torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+      if(self.optimiser=='sgd'):
+          optimiser=torch.optim.SGD(self.parameters(), lr=self.learning_rate, momentum=self.momentum, weight_decay=self.weight_decay)
+      elif(self.optimiser=='adam'):
+          optimiser=torch.optim.Adam(self.parameters(), lr=self.learning_rate, weight_decay=self.weight_decay)
+      else:
+          raise ValueError('Unknown argument passed to --optimiser')
+      
+      return {
+              "optimizer": optimiser,
+              "lr_scheduler": {
+                  "scheduler": ReduceLROnPlateau(optimizer=optimiser, mode="max", patience=5, verbose=True),
+                  "monitor": "val_mAP_epoch",
+                  "frequency": 1
+            },
+        }
     
     def get_lr(self):
         return self.learning_rate
@@ -138,8 +163,15 @@ def main(args):
     
     # Input all needs to come for argparse eventually...
     classification_module = VideoClassificationLightningModule(model_name='slow_r50',
+            loss=args.loss,
+            alpha=args.alpha,
+            gamma=args.gamma,
+            optimiser=args.optimiser,
             freeze_backbone=args.freeze_backbone,
-            learning_rate=args.learning_rate)
+            learning_rate=args.learning_rate,
+            momentum=args.momentum,
+            weight_decay=args.weight_decay
+            )
     
     data_module = PanAfDataModule(batch_size=args.batch_size,
             num_workers = args.num_workers,
@@ -189,36 +221,54 @@ if __name__== "__main__":
    
     parser = argparse.ArgumentParser(description='Process some integers.')
     
-    # Running locally or in the cloud
+    # Trainer args - specify nodes and GPUs
     parser.add_argument('--compute', type=str, required=True,
             help='Specify either "local" or "hpc"')
-
-    # Specify nodes and GPUs
     parser.add_argument('--gpus', type=int, default=0, required=False,
             help='Specify the number of GPUs per node for training. Default is 0 (i.e. train on CPU)')
     parser.add_argument('--nodes', type=int, default=1, required=False,
             help='Specify the number of nodes used in training. Default is 0')
     
-    # Training configuration
+    # Training config - sampling
     parser.add_argument('--batch_size', type=int, required=True, 
             help='Specify the batch size per iteration of training')
     parser.add_argument('--balanced_sampling', type=str, default=None,
             help='Specify "balanced" or "dynamic". The default is None.')
     parser.add_argument('--num_workers', type=int, required=True,
             help='Specify the number of workers')
+
+    # Training config - loss
+    parser.add_argument('--loss', type=str, default='cross_entropy', required=False,
+            help='Specify loss function i.e. "focal" or "cross_entropy". Default is "cross_entropy"')    
+    parser.add_argument('--alpha', type=float, default=1, required=False)
+    parser.add_argument('--gamma', type=float, default=2, required=False)
+
+    # Training config - optimiser
+    parser.add_argument('--optimiser', type=str, default='sgd', required=False,
+            help='Specify optimiser i.e. "sgd" or "adam". Default is "sgd"')
+
+    # Training config - fine-tuning
     parser.add_argument('--freeze_backbone', type=int, required=True,
             help='Specify whether to freeze layers EXCEPT the final layer for fine-tuning')
+    
+    # Training config = other hparams
     parser.add_argument('--learning_rate', type=float, default=0.0001, required=False)
+    parser.add_argument('--momentum', type=float, default=0, required=False)
+    parser.add_argument('--weight_decay', type=float, default=0, required=False)
+
+    # Training config - epochs
     parser.add_argument('--epochs', type=int, default=10, required=False,
             help='Specify the total number of training epochs')
     
-    # Dataset and sample configuration
+    # Dataset configuration
     parser.add_argument('--sample_interval', type=int, default=20, 
             help='The interval between consecutive frames to sample. Default is 20')
     parser.add_argument('--seq_length', type=int, default=5,
             help='The length of the sequence to sample. Default is 5')
     parser.add_argument('--behaviour_threshold', type=int, default=72,
             help='The length of time (in frames) a behaviour must be exhibited to be a valid sample at training time. Default is 72')
+
+    # Add loss arg...
 
     args = parser.parse_args()
 
