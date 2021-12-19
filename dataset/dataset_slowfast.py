@@ -58,7 +58,7 @@ class SlowFastGreatApeDataset(torch.utils.data.Dataset):
         # Normalisation and data augmentation transforms
         self.spatial_transform = transforms.Compose(
             [
-                transforms.Resize((224, 224)),
+                transforms.Resize((414, 414)),
                 transforms.ToTensor(),
                 transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225],),
             ]
@@ -109,9 +109,13 @@ class SlowFastGreatApeDataset(torch.utils.data.Dataset):
 
         # Fast sample
         indices = torch.arange(start=0, end=64, step=4)
-        fast = torch.index_select(slow, 2, indices)
+        fast = torch.index_select(slow, 1, indices)
         
+        # print(fast.shape, slow.shape)
+        
+        # print(torch.unsqueeze(fast, dim=0).shape, torch.unsqueeze(slow, dim=0).shape)
         # Collate sample
+        
         sample = [fast, slow]
 
         label = self.classes.index(activity)
