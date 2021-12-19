@@ -7,7 +7,7 @@ from dataset.sampler import BalancedBatchSampler
 from catalyst.data import DistributedSamplerWrapper 
 from catalyst.data import DynamicBalanceClassSampler
 
-class PanAfDataModule(pytorch_lightning.LightningDataModule):
+class SlowFastPanAfDataModule(pytorch_lightning.LightningDataModule):
 
     def __init__(self, 
             batch_size, 
