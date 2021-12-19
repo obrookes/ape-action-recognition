@@ -37,7 +37,7 @@ class VideoClassificationLightningModule(pl.LightningModule):
 
       # Attach a new head with specified class number (hard coded for now...)
       self.res_head = create_res_basic_head(
-              in_features=2048, out_features=500
+              in_features=2304, out_features=500
       )
 
       self.fc = nn.Linear(in_features=500, out_features=9)
@@ -162,7 +162,7 @@ class VideoClassificationLightningModule(pl.LightningModule):
 def main(args):
     
     # Input all needs to come for argparse eventually...
-    classification_module = VideoClassificationLightningModule(model_name='slow_r50',
+    classification_module = VideoClassificationLightningModule(model_name='slowfast_16x8_r101_50_50',
             loss=args.loss,
             alpha=args.alpha,
             gamma=args.gamma,
