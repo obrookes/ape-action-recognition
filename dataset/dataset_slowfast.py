@@ -114,13 +114,13 @@ class SlowFastGreatApeDataset(torch.utils.data.Dataset):
         # print(fast.shape, slow.shape)
         
         # print(torch.unsqueeze(fast, dim=0).shape, torch.unsqueeze(slow, dim=0).shape)
-        # Collate sample
+        # Collate sample 
         
         sample = [fast, slow]
-
+       
         label = self.classes.index(activity)
         metadata = {"ape_id": ape_id, "start_frame": start_frame, "video": video, "activity": activity}
-
+        
         return sample, label, metadata 
 
     def get_spatial_sample(self, video, ape_id, start_frame):
@@ -141,8 +141,11 @@ class SlowFastGreatApeDataset(torch.utils.data.Dataset):
             spatial_image = Image.open(path)
 
             # Get ape and its coordinates
-            ape = get_ape_by_id(self.annotations_dir, video, start_frame + i, ape_id)
-            coordinates = get_ape_coordinates(ape)
+            try:
+                ape = get_ape_by_id(self.annotations_dir, video, start_frame + i, ape_id)
+                coordinates = get_ape_coordinates(ape)
+            except:
+                print(f"Invalid sample: {video}, {start_frame + i}, {ape_id}")
             
             # Crop around ape
             spatial_image = spatial_image.crop(
@@ -237,24 +240,27 @@ class SlowFastGreatApeDataset(torch.utils.data.Dataset):
                                         break
                                 if correct_activity == False:
                                     break
+                            
+                            # Ensure each sample does not contain invalid frames (i.e. with different ape ids)
+                            if(valid_frame_no < (last_valid_frame - self.sequence_length)):
+                                
+                                # Check if there are enough frames left
+                                if (no_of_frames - valid_frame_no) >= self.sequence_length:
 
-                            # Check if there are enough frames left
-                            if (no_of_frames - valid_frame_no) >= self.sequence_length:
+                                    # Insert sample
+                                    if video not in self.samples.keys():
+                                        self.samples[video] = []
 
-                                # Insert sample
-                                if video not in self.samples.keys():
-                                    self.samples[video] = []
+                                    # Keep count of number of labels
+                                    self.labels += 1
 
-                                # Keep count of number of labels
-                                self.labels += 1
-
-                                self.samples[video].append(
-                                    {
-                                        "ape_id": current_ape_id,
-                                        "activity": current_activity,
-                                        "start_frame": valid_frame_no,
-                                    }
-                                )
+                                    self.samples[video].append(
+                                        {
+                                            "ape_id": current_ape_id,
+                                            "activity": current_activity,
+                                            "start_frame": valid_frame_no,
+                                        }
+                                    )
 
                         frame_no = last_valid_frame
 
