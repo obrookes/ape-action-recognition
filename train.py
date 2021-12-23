@@ -184,7 +184,7 @@ def main(args):
                         strategy=DDPPlugin(find_unused_parameters=True),
                         precision=16,
                         stochastic_weight_avg=args.swa, 
-                        min_epochs=args.epochs) 
+                        max_epochs=args.epochs) 
     else:    
         trainer = pl.Trainer(auto_lr_find=True) 
 
