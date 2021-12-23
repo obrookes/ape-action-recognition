@@ -72,28 +72,20 @@ class VideoClassificationLightningModule(pl.LightningModule):
       
       top1_train_acc = self.top1_train_accuracy(pred, label)
       top3_train_acc = self.top3_train_accuracy(pred, label)
-        
-      probs = F.softmax(pred, dim=1)
-      train_mAP = torchmetrics.functional.average_precision(probs, label, num_classes=9, average='macro')
       
-      self.log('top1_train_acc', top1_train_acc, logger=False, on_epoch=False, on_step=True, prog_bar=True)
-      self.log('top3_train_acc', top3_train_acc, logger=False, on_epoch=False, on_step=True, prog_bar=False)
-      self.log('train_mAP', train_mAP, logger=True, on_epoch=False, on_step=True, prog_bar=False)
+      self.log('top1_train_acc', top1_train_acc, logger=False, on_epoch=False, on_step=True, prog_bar=False)
+      self.log('top3_train_acc', top3_train_acc, logger=False, on_epoch=False, on_step=True, prog_bar=False) 
       self.log('train_loss', loss.item(), logger=True, on_epoch=True, on_step=True)
 
-      return {"loss": loss, "logs": {"train_loss": loss.detach(), "top1_train_acc": top1_train_acc, "top3_train_acc": top3_train_acc, "train_mAP": train_mAP}}
+      return {"loss": loss, "logs": {"train_loss": loss.detach(), "top1_train_acc": top1_train_acc, "top3_train_acc": top3_train_acc}}
 
     def training_epoch_end(self, outputs):
 
         # Log epoch acc
         top1_acc = self.top1_train_accuracy.compute()
         top3_acc = self.top3_train_accuracy.compute()
-        self.log('train_top1_acc_epoch', top1_acc, logger=True, on_epoch=True, on_step=False, prog_bar=False)
-        self.log('train_top3_acc_epoch', top3_acc, logger=True, on_epoch=True, on_step=False, prog_bar=False)  
-
-        # Log mAP
-        train_mAP_epoch = torch.stack([x['logs']['train_mAP'] for x in outputs]).mean()
-        self.log('train_mAP_epoch', train_mAP_epoch, logger=True, on_epoch=True, on_step=False, prog_bar=False) 
+        self.log('train_top1_acc_epoch', top1_acc, logger=True, on_epoch=True, on_step=False, prog_bar=True)
+        self.log('train_top3_acc_epoch', top3_acc, logger=True, on_epoch=True, on_step=False, prog_bar=False)   
 
         # Log epoch loss
         loss = torch.stack([x['loss'] for x in outputs]).mean()
@@ -107,17 +99,13 @@ class VideoClassificationLightningModule(pl.LightningModule):
       loss = F.cross_entropy(pred, label)
       
       top1_val_acc = self.top1_val_accuracy(pred, label)
-      top3_val_acc = self.top3_val_accuracy(pred, label)
-
-      probs = F.softmax(pred, dim=1)
-      val_mAP = torchmetrics.functional.average_precision(probs, label, num_classes=9, average='macro') 
+      top3_val_acc = self.top3_val_accuracy(pred, label) 
 
       self.log('top1_val_acc', top1_val_acc, logger=False, on_epoch=False, on_step=True, prog_bar=False)
       self.log('top3_val_acc', top3_val_acc, logger=False, on_epoch=False, on_step=True, prog_bar=False)
-      self.log('val_mAP', val_mAP, logger=True, on_epoch=False, on_step=True, prog_bar=False)
       self.log('val_loss', loss, logger=True, on_epoch=True, on_step=False)
       
-      return {"loss": loss, "logs": {"val_loss": loss.detach(), "top1_val_acc": top1_val_acc, "top3_val_acc": top3_val_acc, "val_mAP": val_mAP}}
+      return {"loss": loss, "logs": {"val_loss": loss.detach(), "top1_val_acc": top1_val_acc, "top3_val_acc": top3_val_acc}}
 
     def validation_epoch_end(self, outputs):
 
@@ -125,11 +113,7 @@ class VideoClassificationLightningModule(pl.LightningModule):
         top1_acc = self.top1_val_accuracy.compute()
         top3_acc = self.top3_val_accuracy.compute()
         self.log('val_top1_acc_epoch', top1_acc, logger=True, on_epoch=True, on_step=False, prog_bar=True)
-        self.log('val_top3_acc_epoch', top3_acc, logger=True, on_epoch=True, on_step=False, prog_bar=True)  
-
-        # Log mAP
-        val_mAP_epoch = torch.stack([x['logs']['val_mAP'] for x in outputs])
-        self.log('val_mAP_epoch', val_mAP_epoch, logger=True, on_epoch=True, on_step=False, prog_bar=False)
+        self.log('val_top3_acc_epoch', top3_acc, logger=True, on_epoch=True, on_step=False, prog_bar=False)  
 
         # Log epoch loss
         loss = torch.stack([x['loss'] for x in outputs]).mean()
@@ -151,7 +135,7 @@ class VideoClassificationLightningModule(pl.LightningModule):
               "optimizer": optimiser,
               "lr_scheduler": {
                   "scheduler": ReduceLROnPlateau(optimizer=optimiser, mode="max", patience=5, verbose=True),
-                  "monitor": "val_mAP_epoch",
+                  "monitor": "val_top1_acc_epoch",
                   "frequency": 1
             },
         }
@@ -186,28 +170,21 @@ def main(args):
     val_acc_checkpoint = ModelCheckpoint(
         monitor="val_top1_acc_epoch",
         dirpath="/mnt/storage/scratch/dl18206/behaviour_recognition/acc",
-        filename="best_validation_acc_epoch={epoch}",
+        filename=f"validation_{args.ckpt_name}",
         mode="max"
     )
     
-    val_mAP_checkpoint = ModelCheckpoint(
-        monitor="val_mAP_epoch",
-        dirpath="/mnt/storage/scratch/dl18206/behaviour_recognition/mAP",
-        filename="best_validation_mAP_epoch={epoch}",
-        mode="max"
-    )
-
     tb_logger = loggers.TensorBoardLogger('log', name='behaviour_recognition')
 
     if(args.gpus > 0):
-        trainer = pl.Trainer(callbacks=[val_acc_checkpoint, val_mAP_checkpoint],
+        trainer = pl.Trainer(callbacks=[val_acc_checkpoint],
                         replace_sampler_ddp=False,
                         gpus=args.gpus, 
                         num_nodes=args.nodes,
                         strategy=DDPPlugin(find_unused_parameters=True),
                         precision=16,
-                        stochastic_weight_avg=True, 
-                        min_epochs=args.epochs) 
+                        stochastic_weight_avg=args.swa, 
+                        max_epochs=args.epochs) 
     else:    
         trainer = pl.Trainer(auto_lr_find=True) 
 
@@ -256,6 +233,9 @@ if __name__== "__main__":
     parser.add_argument('--momentum', type=float, default=0, required=False)
     parser.add_argument('--weight_decay', type=float, default=0, required=False)
 
+    parser.add_argument('--swa', type=int, required=False, default=1, 
+            help='Enable stochastic weight averaging (swa). Default is 1 (True)')
+
     # Training config - epochs
     parser.add_argument('--epochs', type=int, default=10, required=False,
             help='Specify the total number of training epochs')
@@ -268,7 +248,9 @@ if __name__== "__main__":
     parser.add_argument('--behaviour_threshold', type=int, default=72,
             help='The length of time (in frames) a behaviour must be exhibited to be a valid sample at training time. Default is 72')
 
-    # Add loss arg...
+    # Naming ckpt file
+    parser.add_argument('--ckpt_name', type=str, default='model', 
+            help='Name of checkpoint file')
 
     args = parser.parse_args()
 
