@@ -73,7 +73,7 @@ class VideoClassificationLightningModule(pl.LightningModule):
       top1_train_acc = self.top1_train_accuracy(pred, label)
       top3_train_acc = self.top3_train_accuracy(pred, label)
       
-      self.log('top1_train_acc', top1_train_acc, logger=False, on_epoch=False, on_step=True, prog_bar=True)
+      self.log('top1_train_acc', top1_train_acc, logger=False, on_epoch=False, on_step=True, prog_bar=False)
       self.log('top3_train_acc', top3_train_acc, logger=False, on_epoch=False, on_step=True, prog_bar=False) 
       self.log('train_loss', loss.item(), logger=True, on_epoch=True, on_step=True)
 
@@ -84,7 +84,7 @@ class VideoClassificationLightningModule(pl.LightningModule):
         # Log epoch acc
         top1_acc = self.top1_train_accuracy.compute()
         top3_acc = self.top3_train_accuracy.compute()
-        self.log('train_top1_acc_epoch', top1_acc, logger=True, on_epoch=True, on_step=False, prog_bar=False)
+        self.log('train_top1_acc_epoch', top1_acc, logger=True, on_epoch=True, on_step=False, prog_bar=True)
         self.log('train_top3_acc_epoch', top3_acc, logger=True, on_epoch=True, on_step=False, prog_bar=False)   
 
         # Log epoch loss
@@ -113,7 +113,7 @@ class VideoClassificationLightningModule(pl.LightningModule):
         top1_acc = self.top1_val_accuracy.compute()
         top3_acc = self.top3_val_accuracy.compute()
         self.log('val_top1_acc_epoch', top1_acc, logger=True, on_epoch=True, on_step=False, prog_bar=True)
-        self.log('val_top3_acc_epoch', top3_acc, logger=True, on_epoch=True, on_step=False, prog_bar=True)  
+        self.log('val_top3_acc_epoch', top3_acc, logger=True, on_epoch=True, on_step=False, prog_bar=False)  
 
         # Log epoch loss
         loss = torch.stack([x['loss'] for x in outputs]).mean()
