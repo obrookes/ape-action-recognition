@@ -42,7 +42,8 @@ class VideoClassificationLightningModule(pl.LightningModule):
 
       self.fc = nn.Linear(in_features=500, out_features=9)
       
-      self.dropout = nn.Dropout(p=0.25)
+      # Dropout hardcoded 0 for now
+      self.dropout = nn.Dropout(p=0)
 
       if self.freeze_backbone:
           for param in self.backbone.parameters():
