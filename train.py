@@ -1,3 +1,4 @@
+import random
 import torch
 import torchmetrics
 import argparse
@@ -7,6 +8,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 import pytorch_lightning as pl
 import pytorchvideo.models.resnet
 from pytorchvideo.models.head import create_res_basic_head
+from pytorchvideo.transforms import MixUp
 from dataset.datamodule import PanAfDataModule
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning import loggers
@@ -15,7 +17,7 @@ from kornia.losses import FocalLoss
 
 class VideoClassificationLightningModule(pl.LightningModule):
   
-    def __init__(self, model_name, loss, alpha, gamma, optimiser, freeze_backbone, learning_rate, momentum, weight_decay):
+    def __init__(self, model_name, loss, alpha, gamma, optimiser, freeze_backbone, learning_rate, momentum, weight_decay, augmentation_probability):
       super().__init__()
 
       
@@ -52,7 +54,10 @@ class VideoClassificationLightningModule(pl.LightningModule):
       self.learning_rate = learning_rate
       self.momentum = momentum
       self.weight_decay = weight_decay
-    
+      
+      self.augmentation = MixUp(num_classes=9)
+      self.augmentation_probability = augmentation_probability
+      
       # Metric initialisation
       self.top1_train_accuracy = torchmetrics.Accuracy(top_k=1)
       self.top3_train_accuracy = torchmetrics.Accuracy(top_k=3)
@@ -67,6 +72,11 @@ class VideoClassificationLightningModule(pl.LightningModule):
       # The model expects a video tensor of shape (B, C, T, H, W), which is the
       # format provided by the dataset
       data, label, meta = batch
+      
+      if(random.random() < self.augmentation_probability):
+          data, label = self.augmentation.forward(data, label)
+          label = label.max(dim=0).indices
+
       pred = self(data)
 
       loss = self.loss(pred, label)
@@ -155,7 +165,8 @@ def main(args):
             freeze_backbone=args.freeze_backbone,
             learning_rate=args.learning_rate,
             momentum=args.momentum,
-            weight_decay=args.weight_decay
+            weight_decay=args.weight_decay,
+            augmentation_probability=args.augmentation_prob
             )
     
     data_module = PanAfDataModule(batch_size=args.batch_size,
@@ -236,6 +247,9 @@ if __name__== "__main__":
 
     parser.add_argument('--swa', type=int, required=False, default=1, 
             help='Enable stochastic weight averaging (swa). Default is 1 (True)')
+
+    parser.add_argument('--augmentation_prob', type=float, default=0.5, 
+            help='Specify the probability at which augmention is applied')
 
     # Training config - epochs
     parser.add_argument('--epochs', type=int, default=10, required=False,
