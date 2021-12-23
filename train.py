@@ -206,7 +206,7 @@ def main(args):
                         num_nodes=args.nodes,
                         strategy=DDPPlugin(find_unused_parameters=True),
                         precision=16,
-                        stochastic_weight_avg=True, 
+                        stochastic_weight_avg=args.swa, 
                         min_epochs=args.epochs) 
     else:    
         trainer = pl.Trainer(auto_lr_find=True) 
@@ -255,6 +255,9 @@ if __name__== "__main__":
     parser.add_argument('--learning_rate', type=float, default=0.0001, required=False)
     parser.add_argument('--momentum', type=float, default=0, required=False)
     parser.add_argument('--weight_decay', type=float, default=0, required=False)
+
+    parser.add_argument('--swa', type=int, required=False, default=1, 
+            help='Enable stochastic weight averaging (swa). Default is 1 (True)')
 
     # Training config - epochs
     parser.add_argument('--epochs', type=int, default=10, required=False,
