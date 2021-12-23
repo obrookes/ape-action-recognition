@@ -34,10 +34,21 @@ A quick start script for training on CPU is provided below:
 python train.py --compute='local'
                 --gpus=0
                 --nodes=0
-                --batch_size=8
+                --batch_size=9
+                --balanced_sampling='balanced'
                 --num_workers=12
+                --loss='cross_entropy'
+                --optimiser='sgd'
                 --freeze_backbone=0
-                --epochs=10
+                --learning_rate=1e-4
+                --momentum=0.0
+                --weight_decay=0.0
+                --swa=1
+                --epochs=50
+                --sample_interval=20
+                --seq_length=5
+                --behaviour_threshold=72
+                --ckpt_name='test_model'
 ```
 
 If you want to train on GPU (across multiple GPUs, across multiple nodes) use the following:
