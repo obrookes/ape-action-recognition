@@ -8,7 +8,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 import pytorch_lightning as pl
 import pytorchvideo.models.resnet
 from pytorchvideo.models.head import create_res_basic_head
-from pytorchvideo.transforms import MixUp
+from pytorchvideo.transforms import MixUp, AugMix, CutMix
 from dataset.datamodule import PanAfDataModule
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning import loggers
@@ -17,7 +17,7 @@ from kornia.losses import FocalLoss
 
 class VideoClassificationLightningModule(pl.LightningModule):
   
-    def __init__(self, model_name, loss, alpha, gamma, optimiser, freeze_backbone, learning_rate, momentum, weight_decay, augmentation_probability):
+    def __init__(self, model_name, loss, alpha, gamma, optimiser, freeze_backbone, learning_rate, momentum, weight_decay, augmentation, augmentation_probability):
       super().__init__()
 
       
@@ -55,7 +55,15 @@ class VideoClassificationLightningModule(pl.LightningModule):
       self.momentum = momentum
       self.weight_decay = weight_decay
       
-      self.augmentation = MixUp(num_classes=9)
+      if(augmentation=='mixup'):
+          self.augmentation = MixUp(num_classes=9)
+      elif(augmentation=='augmix'):
+          self.augmentation = AugMix()
+      elif(augmentation=='cutmix'):
+          self.augmentation = CutMix(num_classes=9)
+      else:
+          self.augmentation = None
+
       self.augmentation_probability = augmentation_probability
       
       # Metric initialisation
@@ -69,16 +77,19 @@ class VideoClassificationLightningModule(pl.LightningModule):
         return self.fc(output)
 
     def training_step(self, batch, batch_idx):
-      # The model expects a video tensor of shape (B, C, T, H, W), which is the
-      # format provided by the dataset
+      # The model expects a video tensor of shape (B, C, T, H, W)
       data, label, meta = batch
-      
+
       if(random.random() < self.augmentation_probability):
-          data, label = self.augmentation.forward(data, label)
-          label = label.max(dim=0).indices
-
+          if(self.augmentation == 'mixup' or self.augmentation == 'cutmix'):
+              data, label = self.augmentation.forward(data, label)
+              label = label.max(dim=0).indices
+          elif(self.augmentation == 'augmix'):
+              data = self.augmentation(data)
+          else:
+              pass
+            
       pred = self(data)
-
       loss = self.loss(pred, label)
       
       top1_train_acc = self.top1_train_accuracy(pred, label)
@@ -166,6 +177,7 @@ def main(args):
             learning_rate=args.learning_rate,
             momentum=args.momentum,
             weight_decay=args.weight_decay,
+            augmentation=args.augmentation,
             augmentation_probability=args.augmentation_prob
             )
     
@@ -248,6 +260,8 @@ if __name__== "__main__":
     parser.add_argument('--swa', type=int, required=False, default=1, 
             help='Enable stochastic weight averaging (swa). Default is 1 (True)')
 
+    parser.add_argument('--augmentation', type=str, default=None, 
+            help='Specify type of augmentation i.e. MixUp or AugMix. Default is None')
     parser.add_argument('--augmentation_prob', type=float, default=0.5, 
             help='Specify the probability at which augmention is applied')
 
