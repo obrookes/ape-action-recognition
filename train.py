@@ -72,7 +72,7 @@ class VideoClassificationLightningModule(pl.LightningModule):
       self.top1_train_accuracy = torchmetrics.Accuracy(top_k=1)
       self.top3_train_accuracy = torchmetrics.Accuracy(top_k=3)
       self.top1_val_accuracy = torchmetrics.Accuracy(top_k=1)  
-      self.top3_val_accuracy = torchmetrics.Accuracy(top_k=3) 
+      self.top3_val_accuracy = torchmetrics.Accuracy(top_k=3)
 
     def forward(self, x):
         output = self.dropout(self.res_head(self.backbone(x)))
@@ -84,17 +84,13 @@ class VideoClassificationLightningModule(pl.LightningModule):
 
       if(random.random() < self.augmentation_probability):
           if(self.aug_method == 'mixup' or self.aug_method == 'cutmix'):
-              print(f"Old {label}")
               data, label = self.augmentation.forward(data, label)
               label = label.max(dim=0).indices
-              print(f"New {label}")
           elif(self.aug_method == 'augmix'):
-              augmented_samples = []
-              for video in data.transpose(dim0=1, dim1=2):
-                  augmented_samples.append(self.augmentation(video))
-              data = torch.stack(augmented_samples, dim=0).transpose(dim0=1, dim1=2)
+              data_T = data.transpose(dim0=1, dim1=2)
+              data = torch.stack([self.augmentation(v) for v in data_T], dim=0).transpose(dim0=1, dim1=2)
           else:
-              pass
+              raise ValueError(f'Trying to apply non-existant augmentation')
             
       pred = self(data)
       loss = self.loss(pred, label)
