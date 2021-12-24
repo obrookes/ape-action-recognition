@@ -1,3 +1,4 @@
+import random
 import torch
 import torchmetrics
 import argparse
@@ -7,6 +8,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 import pytorch_lightning as pl
 import pytorchvideo.models.resnet
 from pytorchvideo.models.head import create_res_basic_head
+from pytorchvideo.transforms import MixUp, AugMix, CutMix
 from dataset.datamodule import PanAfDataModule
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning import loggers
@@ -15,7 +17,7 @@ from kornia.losses import FocalLoss
 
 class VideoClassificationLightningModule(pl.LightningModule):
   
-    def __init__(self, model_name, loss, alpha, gamma, optimiser, freeze_backbone, learning_rate, momentum, weight_decay):
+    def __init__(self, model_name, loss, alpha, gamma, optimiser, freeze_backbone, learning_rate, momentum, weight_decay, augmentation, augmentation_probability):
       super().__init__()
 
       
@@ -48,27 +50,49 @@ class VideoClassificationLightningModule(pl.LightningModule):
       if self.freeze_backbone:
           for param in self.backbone.parameters():
               param.requires_grad = False
-     
+
+      self.aug_method = augmentation
+
       self.learning_rate = learning_rate
       self.momentum = momentum
       self.weight_decay = weight_decay
-    
+      
+      if(self.aug_method=='mixup'):
+          self.augmentation = MixUp(num_classes=9)
+      elif(self.aug_method=='augmix'):
+          self.augmentation = AugMix()
+      elif(self.aug_method=='cutmix'):
+          self.augmentation = CutMix(num_classes=9)
+      else:
+          self.augmentation = None
+
+      self.augmentation_probability = augmentation_probability
+      
       # Metric initialisation
       self.top1_train_accuracy = torchmetrics.Accuracy(top_k=1)
       self.top3_train_accuracy = torchmetrics.Accuracy(top_k=3)
       self.top1_val_accuracy = torchmetrics.Accuracy(top_k=1)  
-      self.top3_val_accuracy = torchmetrics.Accuracy(top_k=3) 
+      self.top3_val_accuracy = torchmetrics.Accuracy(top_k=3)
 
     def forward(self, x):
         output = self.dropout(self.res_head(self.backbone(x)))
         return self.fc(output)
 
     def training_step(self, batch, batch_idx):
-      # The model expects a video tensor of shape (B, C, T, H, W), which is the
-      # format provided by the dataset
+      # The model expects a video tensor of shape (B, C, T, H, W)
       data, label, meta = batch
-      pred = self(data)
 
+      if(random.random() < self.augmentation_probability):
+          if(self.aug_method == 'mixup' or self.aug_method == 'cutmix'):
+              data, label = self.augmentation.forward(data, label)
+              label = label.max(dim=0).indices
+          elif(self.aug_method == 'augmix'):
+              data_T = data.transpose(dim0=1, dim1=2)
+              data = torch.stack([self.augmentation(v) for v in data_T], dim=0).transpose(dim0=1, dim1=2)
+          else:
+              raise ValueError(f'Trying to apply non-existant augmentation')
+            
+      pred = self(data)
       loss = self.loss(pred, label)
       
       top1_train_acc = self.top1_train_accuracy(pred, label)
@@ -155,7 +179,9 @@ def main(args):
             freeze_backbone=args.freeze_backbone,
             learning_rate=args.learning_rate,
             momentum=args.momentum,
-            weight_decay=args.weight_decay
+            weight_decay=args.weight_decay,
+            augmentation=args.augmentation,
+            augmentation_probability=args.augmentation_prob
             )
     
     data_module = PanAfDataModule(batch_size=args.batch_size,
@@ -236,6 +262,11 @@ if __name__== "__main__":
 
     parser.add_argument('--swa', type=int, required=False, default=1, 
             help='Enable stochastic weight averaging (swa). Default is 1 (True)')
+
+    parser.add_argument('--augmentation', type=str, default=None, 
+            help='Specify type of augmentation i.e. MixUp or AugMix. Default is None')
+    parser.add_argument('--augmentation_prob', type=float, default=0.5, 
+            help='Specify the probability at which augmention is applied')
 
     # Training config - epochs
     parser.add_argument('--epochs', type=int, default=10, required=False,
