@@ -50,16 +50,18 @@ class VideoClassificationLightningModule(pl.LightningModule):
       if self.freeze_backbone:
           for param in self.backbone.parameters():
               param.requires_grad = False
-     
+
+      self.aug_method = augmentation
+
       self.learning_rate = learning_rate
       self.momentum = momentum
       self.weight_decay = weight_decay
       
-      if(augmentation=='mixup'):
+      if(self.aug_method=='mixup'):
           self.augmentation = MixUp(num_classes=9)
-      elif(augmentation=='augmix'):
+      elif(self.aug_method=='augmix'):
           self.augmentation = AugMix()
-      elif(augmentation=='cutmix'):
+      elif(self.aug_method=='cutmix'):
           self.augmentation = CutMix(num_classes=9)
       else:
           self.augmentation = None
@@ -81,11 +83,16 @@ class VideoClassificationLightningModule(pl.LightningModule):
       data, label, meta = batch
 
       if(random.random() < self.augmentation_probability):
-          if(self.augmentation == 'mixup' or self.augmentation == 'cutmix'):
+          if(self.aug_method == 'mixup' or self.aug_method == 'cutmix'):
+              print(f"Old {label}")
               data, label = self.augmentation.forward(data, label)
               label = label.max(dim=0).indices
-          elif(self.augmentation == 'augmix'):
-              data = self.augmentation(data)
+              print(f"New {label}")
+          elif(self.aug_method == 'augmix'):
+              augmented_samples = []
+              for video in data.transpose(dim0=1, dim1=2):
+                  augmented_samples.append(self.augmentation(video))
+              data = torch.stack(augmented_samples, dim=0).transpose(dim0=1, dim1=2)
           else:
               pass
             
