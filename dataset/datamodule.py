@@ -36,7 +36,7 @@ class PanAfDataModule(pytorch_lightning.LightningDataModule):
             self._TEST_VIDEOS = '/home/dl18206/Desktop/phd/code/personal/pan-africa-annotation/action-recognition/splits/testdata.txt'
             self._CLASSES = open('classes.txt').read().strip().split()
         
-        elif(self.compute=='hpc'):
+        elif(self.compute=='bc4'):
             self._FRAMES = '/mnt/storage/scratch/dl18206/frames'
             self._ANNOTATIONS = '/mnt/storage/scratch/dl18206/annotations'
             self._TRAIN_VIDEOS = '/mnt/storage/scratch/dl18206/splits/train.txt'
@@ -44,6 +44,13 @@ class PanAfDataModule(pytorch_lightning.LightningDataModule):
             self._TEST_VIDEOS = '/mnt/storage/scratch/dl18206/splits/test.txt'
             self._CLASSES = open('/mnt/storage/scratch/dl18206/classes.txt').read().strip().split()
 
+        elif(self.compute=='bp'):
+            self._FRAMES ='/user/work/dl18206/data/rgb' 
+            self._ANNOTATIONS = '/user/work/dl18206/data/annotations'
+            self._TRAIN_VIDEOS = '/user/work/dl18206/data/splits/train.txt'
+            self._VAL_VIDEOS = '/user/work/dl18206/data/splits/val.txt'
+            self._TEST_VIDEOS = '/user/work/dl18206/data/splits/test.txt'
+            self._CLASSES = open('/user/work/dl18206/data/classes.txt').read().strip().split()
 
     def train_dataloader(self):
 
