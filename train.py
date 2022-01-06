@@ -197,7 +197,7 @@ def main(args):
     val_acc_checkpoint = ModelCheckpoint(
         monitor="val_top1_acc_epoch",
         dirpath=args.save_ckpt,
-        filename="top1_acc_epoch={epoch}",
+        filename="top1_acc_{epoch}",
         mode="max"
     )
     
