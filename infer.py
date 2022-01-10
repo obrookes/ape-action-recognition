@@ -18,7 +18,7 @@ from kornia.losses import FocalLoss
 
 class VideoClassificationLightningModule(pl.LightningModule):
   
-    def __init__(self, model_name, loss, alpha, gamma, optimiser, freeze_backbone, learning_rate, momentum, weight_decay, augmentation, augmentation_probability):
+    def __init__(self, model_name, loss, alpha, gamma, optimiser, freeze_backbone, learning_rate, momentum, weight_decay, augmentation, augmentation_probability, save_results, results_name):
       super().__init__()
 
       
@@ -74,6 +74,10 @@ class VideoClassificationLightningModule(pl.LightningModule):
       self.top3_train_accuracy = torchmetrics.Accuracy(top_k=3)
       self.top1_val_accuracy = torchmetrics.Accuracy(top_k=1)  
       self.top3_val_accuracy = torchmetrics.Accuracy(top_k=3)
+
+      # Saving results
+      self.save_results = save_results
+      self.results_name = results_name
 
     def forward(self, x):
         output = self.dropout(self.res_head(self.backbone(x)))
@@ -136,7 +140,8 @@ class VideoClassificationLightningModule(pl.LightningModule):
       top1_val_acc = self.top1_val_accuracy(pred, label)
       top3_val_acc = self.top3_val_accuracy(pred, label) 
       
-      result = self.get_result(batch_idx, meta, pred, label)
+      if(self.save_results):
+        result = self.get_result(batch_idx, meta, pred, label)
 
       self.log('top1_val_acc', top1_val_acc, logger=False, on_epoch=False, on_step=True, prog_bar=False)
       self.log('top3_val_acc', top3_val_acc, logger=False, on_epoch=False, on_step=True, prog_bar=False)
@@ -157,10 +162,12 @@ class VideoClassificationLightningModule(pl.LightningModule):
         self.log('val_loss_epoch', loss, logger=True, on_epoch=True, on_step=False, prog_bar=False)
 
         # Process results
-        results = [x["logs"]["result"] for x in outputs]
-
-        with open('results.pkl', 'wb') as handle:
-            pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        if(self.save_results):
+            results = [x["logs"]["result"] for x in outputs]
+            
+            # Save results
+            with open('results.pkl', 'wb') as handle:
+                pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     def configure_optimizers(self):
       """
@@ -200,8 +207,10 @@ def main(args):
             momentum=args.momentum,
             weight_decay=args.weight_decay,
             augmentation=args.augmentation,
-            augmentation_probability=args.augmentation_prob
-            )
+            augmentation_probability=args.augmentation_prob,
+            save_results=args.save_results,
+            results_name=args.results_name
+        )
     
     data_module = PanAfDataModule(batch_size=args.batch_size,
             num_workers = args.num_workers,
@@ -210,7 +219,7 @@ def main(args):
             behaviour_threshold = args.behaviour_threshold,
             balanced_sampling=args.balanced_sampling,
             compute = args.compute
-            )
+        )
     
     # Checkpoint callbacks    
     val_acc_checkpoint = ModelCheckpoint(
@@ -301,6 +310,13 @@ if __name__== "__main__":
     # Path where ckpt file is saved
     parser.add_argument('--save_ckpt', type=str, required=True,
             help='Specify path where model checkpoint should be saved')
+
+    # Saving results
+    parser.add_argument('--save_results', type=int, default=1, required=False,
+            help='Specify whether to collect and save the results')
+
+    parser.add_argument('--results_name', type=str, default='results.pkl', required=False,
+            help='Specify the name of results file')
 
     args = parser.parse_args()
 
