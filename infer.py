@@ -220,14 +220,11 @@ def main(args):
             compute = args.compute
         )
 
-    if(args.gpus > 0):
+    if(args.compute != 'local'):
         trainer = pl.Trainer(replace_sampler_ddp=False,
                 gpus=args.gpus, 
                 num_nodes=args.nodes,
-                strategy=DDPPlugin(find_unused_parameters=True),
                 precision=16,
-                stochastic_weight_avg=args.swa, 
-                max_epochs=args.epochs
             ) 
     else:    
         trainer = pl.Trainer() 
@@ -273,18 +270,11 @@ if __name__== "__main__":
     parser.add_argument('--momentum', type=float, default=0, required=False)
     parser.add_argument('--weight_decay', type=float, default=0, required=False)
 
-    parser.add_argument('--swa', type=int, required=False, default=1, 
-            help='Enable stochastic weight averaging (swa). Default is 1 (True)')
-
     parser.add_argument('--augmentation', type=str, default=None, 
             help='Specify type of augmentation i.e. MixUp or AugMix. Default is None')
     parser.add_argument('--augmentation_prob', type=float, default=0.5, 
             help='Specify the probability at which augmention is applied')
-
-    # Training config - epochs
-    parser.add_argument('--epochs', type=int, default=10, required=False,
-            help='Specify the total number of training epochs')
-    
+   
     # Dataset configuration
     parser.add_argument('--sample_interval', type=int, default=20, 
             help='The interval between consecutive frames to sample. Default is 20')
