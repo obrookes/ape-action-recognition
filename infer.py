@@ -195,7 +195,7 @@ class VideoClassificationLightningModule(pl.LightningModule):
 def main(args):
     
     # Input all needs to come for argparse eventually...
-    classification_module = VideoClassificationLightningModule.load_from_checkpoint(checkpoint_path='weights/top1_acc_epoch=140.ckpt',
+    classification_module = VideoClassificationLightningModule.load_from_checkpoint(checkpoint_path=args.checkpoint_path,
             model_name='slow_r50',
             loss=args.loss,
             alpha=args.alpha,
@@ -292,6 +292,10 @@ if __name__== "__main__":
             help='The length of the sequence to sample. Default is 5')
     parser.add_argument('--behaviour_threshold', type=int, default=72,
             help='The length of time (in frames) a behaviour must be exhibited to be a valid sample at training time. Default is 72')
+
+    # Load checkpoint
+    parser.add_argument('--checkpoint_path', type=str, required=True,
+            help='Specify path to ckpt file')
 
     # Saving results
     parser.add_argument('--save_results', type=int, default=1, required=False,
