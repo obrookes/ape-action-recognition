@@ -166,7 +166,7 @@ class VideoClassificationLightningModule(pl.LightningModule):
             results = [x["logs"]["result"] for x in outputs]
             
             # Save results
-            with open('results.pkl', 'wb') as handle:
+            with open(self.results_name, 'wb') as handle:
                 pickle.dump(results, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     def configure_optimizers(self):
