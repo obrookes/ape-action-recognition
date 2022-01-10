@@ -220,33 +220,20 @@ def main(args):
             balanced_sampling=args.balanced_sampling,
             compute = args.compute
         )
-    
-    # Checkpoint callbacks    
-    val_acc_checkpoint = ModelCheckpoint(
-        monitor="val_top1_acc_epoch",
-        dirpath=args.save_ckpt,
-        filename="top1_acc_{epoch}",
-        mode="max"
-    )
-    
-    tb_logger = loggers.TensorBoardLogger('log', name='behaviour_recognition')
 
     if(args.gpus > 0):
-        trainer = pl.Trainer(callbacks=[val_acc_checkpoint],
-                        replace_sampler_ddp=False,
-                        gpus=args.gpus, 
-                        num_nodes=args.nodes,
-                        strategy=DDPPlugin(find_unused_parameters=True),
-                        precision=16,
-                        stochastic_weight_avg=args.swa, 
-                        max_epochs=args.epochs) 
+        trainer = pl.Trainer(replace_sampler_ddp=False,
+                gpus=args.gpus, 
+                num_nodes=args.nodes,
+                strategy=DDPPlugin(find_unused_parameters=True),
+                precision=16,
+                stochastic_weight_avg=args.swa, 
+                max_epochs=args.epochs
+            ) 
     else:    
-        trainer = pl.Trainer(auto_lr_find=True) 
+        trainer = pl.Trainer() 
 
     trainer.validate(classification_module, data_module)
-
-    # Train
-    # trainer.fit(classification_module, data_module)
 
 if __name__== "__main__":
    
@@ -306,10 +293,6 @@ if __name__== "__main__":
             help='The length of the sequence to sample. Default is 5')
     parser.add_argument('--behaviour_threshold', type=int, default=72,
             help='The length of time (in frames) a behaviour must be exhibited to be a valid sample at training time. Default is 72')
-
-    # Path where ckpt file is saved
-    parser.add_argument('--save_ckpt', type=str, required=True,
-            help='Specify path where model checkpoint should be saved')
 
     # Saving results
     parser.add_argument('--save_results', type=int, default=1, required=False,
