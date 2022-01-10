@@ -54,14 +54,26 @@ python train.py --compute='local'
 If you want to train on GPU (across multiple GPUs, across multiple nodes) use the following:
 
 ```bash
-python train.py --compute='hpc'
+python train.py --compute='bp'
                 --gpus=2 
                 --nodes=1 
-                --batch_size=8 
-                --balanced_sampling='dynamic'
-                --num_workers=12
-                --freeze_backbone=0
-                --epochs=10
+                --batch_size=9 
+                --balanced_sampling=None 
+                --num_workers=8 
+                --loss='cross_entropy' 
+                --optimiser='sgd' 
+                --freeze_backbone=0 
+                --learning_rate=1e-4 
+                --momentum=0.0 
+                --weight_decay=0.0 
+                --swa=0 
+                --augmentation=None 
+                --augmentation_prob=0 
+                --epochs=250 
+                --sample_interval=5 
+                --seq_length=5 
+                --behaviour_threshold=72 
+                --save_ckpt='path/to/save/location'
 ```
 
 This has been tested on SLURM only.
