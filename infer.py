@@ -20,7 +20,6 @@ class VideoClassificationLightningModule(pl.LightningModule):
   
     def __init__(self, model_name, loss, alpha, gamma, optimiser, freeze_backbone, learning_rate, momentum, weight_decay, augmentation, augmentation_probability, save_results, results_name):
       super().__init__()
-
       
       self.model_name = model_name
 
