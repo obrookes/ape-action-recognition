@@ -86,8 +86,8 @@ This has been tested on SLURM only.
 
 ```bash
 python infer.py --compute='local' 
-                --gpus=0 # remove - only want to infer on one GPU
-                --nodes=0 # remove - only want to infer on one GPU  
+                --gpus=0 
+                --nodes=0   
                 --batch_size=9 
                 --balanced_sampling=None # remove - shuffle=False for validation
                 --num_workers=8 
@@ -97,8 +97,6 @@ python infer.py --compute='local'
                 --learning_rate=1e-4 
                 --momentum=0.0 
                 --weight_decay=0.0 
-                --swa=0 # remove - not required during validation
-                --epochs=50 # remove - not training
                 --sample_interval=5 
                 --seq_length=5 
                 --behaviour_threshold=72 
