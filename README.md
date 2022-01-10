@@ -26,7 +26,11 @@ conda activate action
 This should install the requisite packages.
 
 
-## Usage
+# Usage
+
+This section outlines how to train (on CPU and GPU) and perform inference on the Pan-African dataset. 
+
+## Training
 
 A quick start script for training on CPU is provided below:
 
@@ -78,4 +82,27 @@ python train.py --compute='bp'
 
 This has been tested on SLURM only.
 
+## Inference
 
+```bash
+python infer.py --compute='local' 
+                --gpus=0 # remove - only want to infer on one GPU
+                --nodes=0 # remove - only want to infer on one GPU  
+                --batch_size=9 
+                --balanced_sampling=None # remove - shuffle=False for validation
+                --num_workers=8 
+                --loss='cross_entropy' 
+                --optimiser='sgd' 
+                --freeze_backbone=0 
+                --learning_rate=1e-4 
+                --momentum=0.0 
+                --weight_decay=0.0 
+                --swa=0 # remove - not required during validation
+                --epochs=50 # remove - not training
+                --sample_interval=5 
+                --seq_length=5 
+                --behaviour_threshold=72 
+                --checkpoint_path=weights/top1_acc_epoch=140.ckpt 
+                --save_results=1 
+                --results_name='results.pkl'
+```
