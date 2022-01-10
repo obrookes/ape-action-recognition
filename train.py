@@ -196,8 +196,8 @@ def main(args):
     # Checkpoint callbacks    
     val_acc_checkpoint = ModelCheckpoint(
         monitor="val_top1_acc_epoch",
-        dirpath="/mnt/storage/scratch/dl18206/behaviour_recognition/acc",
-        filename=f"validation_{args.ckpt_name}",
+        dirpath=args.save_ckpt,
+        filename="top1_acc_{epoch}",
         mode="max"
     )
     
@@ -280,9 +280,9 @@ if __name__== "__main__":
     parser.add_argument('--behaviour_threshold', type=int, default=72,
             help='The length of time (in frames) a behaviour must be exhibited to be a valid sample at training time. Default is 72')
 
-    # Naming ckpt file
-    parser.add_argument('--ckpt_name', type=str, default='model', 
-            help='Name of checkpoint file')
+    # Path where ckpt file is saved
+    parser.add_argument('--save_ckpt', type=str, required=True,
+            help='Specify path where model checkpoint should be saved')
 
     args = parser.parse_args()
 
