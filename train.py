@@ -210,6 +210,7 @@ def main(args):
                         num_nodes=args.nodes,
                         strategy=DDPPlugin(find_unused_parameters=True),
                         precision=16,
+                        accumulate_grad_batches=args.acc_batches,
                         stochastic_weight_avg=args.swa, 
                         max_epochs=args.epochs) 
     else:    
@@ -236,6 +237,8 @@ if __name__== "__main__":
     # Training config - sampling
     parser.add_argument('--batch_size', type=int, required=True, 
             help='Specify the batch size per iteration of training')
+    parser.add_argument('--acc_batches', type=int, required=False, default=1,
+            help='Specify number of batches to accumulate')
     parser.add_argument('--balanced_sampling', type=str, default=None,
             help='Specify "balanced" or "dynamic". The default is None.')
     parser.add_argument('--num_workers', type=int, required=True,
