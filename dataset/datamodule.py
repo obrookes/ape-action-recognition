@@ -37,12 +37,12 @@ class PanAfDataModule(pytorch_lightning.LightningDataModule):
             self._CLASSES = open('classes.txt').read().strip().split()
         
         elif(self.compute=='bc4'):
-            self._FRAMES = '/mnt/storage/scratch/dl18206/frames'
-            self._ANNOTATIONS = '/mnt/storage/scratch/dl18206/annotations'
-            self._TRAIN_VIDEOS = '/mnt/storage/scratch/dl18206/splits/train.txt'
-            self._VAL_VIDEOS = '/mnt/storage/scratch/dl18206/splits/val.txt'
-            self._TEST_VIDEOS = '/mnt/storage/scratch/dl18206/splits/test.txt'
-            self._CLASSES = open('/mnt/storage/scratch/dl18206/classes.txt').read().strip().split()
+            self._FRAMES = '/user/work/dl18206/frames'
+            self._ANNOTATIONS = '/user/work/dl18206/annotations'
+            self._TRAIN_VIDEOS = '/user/work/dl18206/splits/train.txt'
+            self._VAL_VIDEOS = '/user/work/dl18206/splits/val.txt'
+            self._TEST_VIDEOS = '/user/work/dl18206/splits/test.txt'
+            self._CLASSES = open('/user/work/dl18206/classes.txt').read().strip().split()
 
         elif(self.compute=='bp'):
             self._FRAMES ='/user/work/dl18206/data/frames' 
