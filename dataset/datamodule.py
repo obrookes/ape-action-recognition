@@ -70,7 +70,7 @@ class PanAfDataModule(pytorch_lightning.LightningDataModule):
         )
         
         if(self.balanced_sampling=='balanced'):
-            if(self.compute=='hpc'): 
+            if(self.compute=='bc4' or self.compute=='bp'): 
                 self.sampler = DistributedSamplerWrapper(BalancedBatchSampler(train_dataset, train_dataset.labels)) # 
             elif(self.compute=='local'):
                 self.sampler = BalancedBatchSampler(train_dataset, train_dataset.labels)
@@ -78,7 +78,7 @@ class PanAfDataModule(pytorch_lightning.LightningDataModule):
                 raise ValueError('Unexpected argument passed as --compute')
                 
         elif(self.balanced_sampling=='dynamic'):
-            if(self.compute=='hpc'):
+            if(self.compute=='bc4' or self.compute=='bp'):
                 self.sampler=DistributedSamplerWrapper(DynamicBalanceClassSampler(train_dataset.labels))
             elif(self.compute=='local'):
                 self.sampler=DynamicBalanceClassSampler(train_dataset.labels)
