@@ -83,7 +83,7 @@ class VideoClassificationLightningModule(pl.LightningModule):
       # The model expects a video tensor of shape (B, C, T, H, W)
       data, label, meta = batch
 
-      if(random.random() < self.augmentation_probability):
+      if(random.random() <= self.augmentation_probability):
           if(self.aug_method == 'mixup' or self.aug_method == 'cutmix'):
               data, label = self.augmentation.forward(data, label)
               label = label.max(dim=1).indices
