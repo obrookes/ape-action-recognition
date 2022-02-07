@@ -79,19 +79,20 @@ class VideoClassificationLightningModule(pl.LightningModule):
         return self.fc(output)
 
     def training_step(self, batch, batch_idx):
+      
       # The model expects a video tensor of shape (B, C, T, H, W)
       data, label, meta = batch
 
       if(random.random() < self.augmentation_probability):
           if(self.aug_method == 'mixup' or self.aug_method == 'cutmix'):
               data, label = self.augmentation.forward(data, label)
-              label = label.max(dim=0).indices
+              label = label.max(dim=1).indices
           elif(self.aug_method == 'augmix'):
               data_T = data.transpose(dim0=1, dim1=2)
               data = torch.stack([self.augmentation(v) for v in data_T], dim=0).transpose(dim0=1, dim1=2)
           else:
-              raise ValueError(f'Trying to apply non-existant augmentation')
-            
+              raise ValueError(f'Trying to apply non-existant augmentation')          
+      
       pred = self(data)
       loss = self.loss(pred, label)
       
